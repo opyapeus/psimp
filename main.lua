@@ -1,2 +1,1 @@
-local Main = require "Main/index"
-print(Main.main())
+(require "Main/index").main()
