@@ -10,47 +10,42 @@ import Data.Generic.Rep.Show (genericShow)
 import Data.Tuple (Tuple)
 import PSString (PSString)
 
-data Expr a
-  -- | A literal value
-  = Literal (CF.Literal (Expr a))
-  -- | A data constructor (constructor name, field names)  
+-- | Imperative language AST that does not need to declare type explicitly
+data Expr
+  -- | Literal value
+  = Literal (CF.Literal Expr)
+  -- | Data constructor (constructor name, field names)  
   | Constructor CF.ProperName (Array CF.Ident)
-  -- | An object accessor
-  | Accessor PSString (Expr a)
-  -- | An array accessor
-  | Indexer Int (Expr a)
+  -- | Object accessor
+  | Accessor PSString Expr
+  -- | Array accessor
+  | Indexer Int Expr
   -- | Partial object update
-  | ObjectUpdate (Expr a) (Array (Tuple PSString (Expr a)))
+  | ObjectUpdate Expr (Array (Tuple PSString Expr))
   -- | Function application
-  | Apply (Expr a) (Expr a)
+  | Apply Expr Expr
   -- | Variable
   | Variable (CF.Qualified CF.Ident)
   -- | Anonimous function (argument name, statements)
-  | Function CF.Ident (Array (Stat a))
-  -- | Let In
-  | LetIn (Array (Stat a))
+  | Function CF.Ident (Array Stat)
   -- | Binary operation
-  | Binary BinOp (Expr a) (Expr a)
+  | Binary BinOp Expr Expr
   -- | Unary operation
-  | Unary UnOp (Expr a)
-  -- | Tag Of
-  | TagOf (CF.Qualified CF.ProperName) (Expr a)
+  | Unary UnOp Expr
+  -- | Constructor identification
+  | TagOf (CF.Qualified CF.ProperName) Expr
   -- | Unit (Prim.undefined)
   | Unit
 
-data Stat a
+data Stat
   -- | Assignment
-  = Assign CF.Ident (Expr a)
+  = Assign CF.Ident Expr
   -- | Conditional statement
-  | If (Expr a) (Array (Stat a))
+  | If Expr (Array Stat)
   -- | Return value
-  | Return (Expr a)
+  | Return Expr
 
-derive instance functorExpr :: Functor Expr
-
-derive instance functorStat :: Functor Stat
-
-instance showExpr :: Show a => Show (Expr a) where
+instance showExpr :: Show Expr where
   show (Literal lit) = showCtor "Literal" [ show lit ]
   show (Constructor cn args) = showCtor "Constructor" [ show cn, show args ]
   show (Accessor k v) = showCtor "Accessor" [ show k, show v ]
@@ -59,13 +54,12 @@ instance showExpr :: Show a => Show (Expr a) where
   show (Apply f x) = showCtor "Apply" [ show f, show x ]
   show (Variable qi) = showCtor "Variable" [ show qi ]
   show (Function arg stats) = showCtor "Function" [ show arg, show stats ]
-  show (LetIn stats) = showCtor "LetIn" [ show stats ]
   show (Binary op x y) = showCtor "Binary" [ show op, show x, show y ]
   show (Unary op x) = showCtor "Unary" [ show op, show x ]
   show (TagOf cn x) = showCtor "TagOf" [ show cn, show x ]
   show Unit = "Unit"
 
-instance showStat :: Show a => Show (Stat a) where
+instance showStat :: Show Stat where
   show (Assign ident val) = showCtor "Assign" [ show ident, show val ]
   show (If cond stats) = showCtor "If" [ show cond, show stats ]
   show (Return val) = showCtor "Return" [ show val ]
@@ -108,10 +102,10 @@ instance showBinOp :: Show BinOp where
 instance showUnOp :: Show UnOp where
   show = genericShow
 
-everywhere :: forall a. (Expr a -> Expr a) -> Stat a -> Stat a
+everywhere :: (Expr -> Expr) -> Stat -> Stat
 everywhere f = go'
   where
-  go :: Expr a -> Expr a
+  go :: Expr -> Expr
   go (Literal lit) = f (Literal (go'' lit))
 
   go (Accessor a x) = f (Accessor a (go x))
@@ -124,8 +118,6 @@ everywhere f = go'
 
   go (Function arg stats) = f (Function arg (map go' stats))
 
-  go (LetIn stats) = f (LetIn (map go' stats))
-
   go (Binary op x y) = f (Binary op (go x) (go y))
 
   go (Unary op x) = f (Unary op (go x))
@@ -134,14 +126,14 @@ everywhere f = go'
 
   go other = f other
 
-  go' :: Stat a -> Stat a
+  go' :: Stat -> Stat
   go' (Assign ident var) = (Assign ident (go var))
 
   go' (If cond stats) = (If (go cond) (map go' stats))
 
   go' (Return x) = (Return (go x))
 
-  go'' :: CF.Literal (Expr a) -> CF.Literal (Expr a)
+  go'' :: CF.Literal Expr -> CF.Literal Expr
   go'' (CF.ArrayLiteral xs) = (CF.ArrayLiteral (map go xs))
 
   go'' (CF.ObjectLiteral kvs) = (CF.ObjectLiteral (map (map go) kvs))

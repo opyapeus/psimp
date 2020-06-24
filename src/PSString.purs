@@ -1,4 +1,4 @@
--- NOTE: this should be in CoreFn
+-- NOTE: this should be in CoreFn?
 module PSString where
 
 import Prelude

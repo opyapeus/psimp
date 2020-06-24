@@ -7,24 +7,24 @@ import CoreImp.AST (BinOp(..), Expr(..), Stat, UnOp(..), everywhere)
 import Data.Foldable (any)
 import Data.Maybe (Maybe(..))
 
-optimize :: forall a. Stat a -> Stat a
+optimize :: Stat -> Stat
 optimize = enhance <<< necessary
   where
   necessary = removeUndefinedApp
 
   enhance = inlineCommonOperators
 
-removeUndefinedApp :: forall a. Stat a -> Stat a
+removeUndefinedApp :: Stat -> Stat
 removeUndefinedApp = everywhere convert
   where
   convert (Apply f (Variable (CF.Qualified (Just (CF.ModuleName [ (CF.ProperName "Prim") ])) (CF.Ident "undefined")))) = Apply f Unit
 
   convert a = a
 
-inlineCommonOperators :: forall a. Stat a -> Stat a
+inlineCommonOperators :: Stat -> Stat
 inlineCommonOperators = everywhere convert
   where
-  convert :: Expr a -> Expr a
+  convert :: Expr -> Expr
   convert a@(Apply (Apply (Apply f d) x) y) = case f, d of
     Variable (CF.Qualified (Just (CF.ModuleName pns)) ident)
     , Variable (CF.Qualified (Just (CF.ModuleName pns')) ident')

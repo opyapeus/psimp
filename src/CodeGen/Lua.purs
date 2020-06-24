@@ -18,7 +18,7 @@ import Data.String.CodeUnits (fromCharArray)
 import Data.Tuple (Tuple(..))
 import PSString (PSString(..))
 
-impToLua :: forall a. CI.Module a -> Array L.Stat
+impToLua :: CI.Module -> Array L.Stat
 impToLua mod =
   imps
     <> fimp
@@ -54,21 +54,21 @@ impToLua mod =
 
   qiToExpr (CF.Qualified _ ident) = L.Var $ identToLua ident
 
-  statToLua :: CI.Stat a -> L.Stat
+  statToLua :: CI.Stat -> L.Stat
   statToLua (CI.Assign ident expr) = L.LocalAssign (identToLua ident) (exprToLua expr)
 
   statToLua (CI.If expr stats) = L.If (exprToLua expr) $ map statToLua stats
 
   statToLua (CI.Return expr) = L.Return (exprToLua expr)
 
-  exprToLua :: CI.Expr a -> L.Expr
+  exprToLua :: CI.Expr -> L.Expr
   exprToLua (CI.Literal l) = L.Literal (literal l)
 
   exprToLua (CI.Constructor cn idents) = go idents []
     where
     go :: Array CF.Ident -> Array L.Stat -> L.Expr
     go [] done =
-      letIn
+      iife
         $ [ L.LocalAssign cn'
               ( L.Literal
                   ( L.Object
@@ -96,7 +96,7 @@ impToLua mod =
   exprToLua (CI.Indexer i expr) = L.Indexer (luaIndex i) (exprToLua expr)
 
   exprToLua (CI.ObjectUpdate expr kvs) =
-    letIn
+    iife
       $ map
           (\(Tuple k v) -> L.Assign (L.Accessor (psstringToLua k) (exprToLua expr)) (exprToLua v))
           kvs
@@ -107,8 +107,6 @@ impToLua mod =
   exprToLua (CI.Variable qi) = qiToExpr qi
 
   exprToLua (CI.Function arg stats) = L.Function (identToLua arg) $ map statToLua stats
-
-  exprToLua (CI.LetIn stats) = letIn $ map statToLua stats
 
   exprToLua (CI.TagOf cn expr) =
     L.Binary
@@ -160,7 +158,7 @@ impToLua mod =
 
   unary CI.Not = L.Not
 
-  literal :: CF.Literal (CI.Expr a) -> L.Lit
+  literal :: CF.Literal CI.Expr -> L.Lit
   literal (CF.NumericLiteral (Left i)) = L.Int i
 
   literal (CF.NumericLiteral (Right n)) = L.Number n
@@ -180,8 +178,8 @@ impToLua mod =
           []
           (lmap PSString <$> kvs)
 
-letIn :: Array Stat -> Expr
-letIn stats = L.App (L.Function "" stats) L.Nil
+iife :: Array Stat -> Expr
+iife stats = L.App (L.Function "" stats) L.Nil
 
 mkModName :: CF.ModuleName -> String
 mkModName (CF.ModuleName pns) = joinWith "_" $ map properToLua pns
