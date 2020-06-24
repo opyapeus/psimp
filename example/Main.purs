@@ -3,10 +3,13 @@ module Main where
 import Prelude
 import Effect (Effect)
 import Effect.Console (log)
-import Sample (f)
+import Sample (eo)
 
 main :: Effect Unit
 main = do
   let
-    r = f 1
-  log r
+    odd = eo 1
+
+    even = eo 2
+  log odd
+  log even

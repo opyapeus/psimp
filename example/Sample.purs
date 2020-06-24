@@ -2,8 +2,8 @@ module Sample where
 
 import Prelude
 
-f :: Int -> String
-f x =
+eo :: Int -> String
+eo x =
   if mod x 2 == 0 then
     "even"
   else
