@@ -78,7 +78,7 @@ fnToImp (CF.Module m) = do
   iife :: Array Stat -> Expr
   iife stats = Apply (Function (CF.Ident unusedVarName) stats) Unit
     where
-    unusedVarName = "__unused"
+    unusedVarName = "_unused_coreimp"
 
   return :: Expr -> Array Stat
   return = singleton <<< Return

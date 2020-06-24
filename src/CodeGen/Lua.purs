@@ -6,7 +6,7 @@ import CodeGen.Lua.AST as L
 import CodeGen.Lua.Common (identToLua, properToLua, psstringToLua)
 import CoreFn.Ident (Ident) as CF
 import CoreFn.Literal (Literal(..)) as CF
-import CoreFn.Names (ModuleName(..), Qualified(..)) as CF
+import CoreFn.Names (ModuleName(..), ProperName(..), Qualified(..)) as CF
 import CoreImp.AST (BinOp(..), Expr(..), Stat(..), UnOp(..)) as CI
 import CoreImp.Module (Module) as CI
 import Data.Array (cons, elem, foldr, null, uncons)
@@ -34,14 +34,14 @@ impToLua mod =
 
   imps =
     map
-      (\modName -> L.LocalAssign (mkModName modName) (L.Require (joinWith "/" [ mkModName modName, indexIdent ])))
+      (\modName -> L.LocalAssign (mkModName modName) (L.Require (joinWith "/" [ mkModPath modName, indexIdent ])))
       mod.moduleImports
 
   fimp =
     if null mod.moduleForeigns then
       []
     else
-      [ L.LocalAssign foreignIdent (L.Require (joinWith "/" [ mkModName mod.moduleName, foreignIdent ])) ]
+      [ L.LocalAssign foreignIdent (L.Require (joinWith "/" [ mkModPath mod.moduleName, foreignIdent ])) ]
 
   fbind =
     map (\f -> LocalAssign (identToLua f) (L.Accessor (identToLua f) (L.Var foreignIdent)))
@@ -179,10 +179,18 @@ impToLua mod =
           (lmap PSString <$> kvs)
 
 iife :: Array Stat -> Expr
-iife stats = L.App (L.Function "" stats) L.Nil
+iife stats = L.App (L.Function unusedVarName stats) L.Nil
+  where
+  unusedVarName = "_unused_lua"
 
 mkModName :: CF.ModuleName -> String
 mkModName (CF.ModuleName pns) = joinWith "_" $ map properToLua pns
+
+mkModPath :: CF.ModuleName -> String
+mkModPath (CF.ModuleName pns) = joinWith modPathJoiner $ map unProper pns
+
+modPathJoiner :: String
+modPathJoiner = "_"
 
 ctorTagIdent :: String
 ctorTagIdent = "tag"
@@ -199,3 +207,6 @@ luaIndex = (+) 1
 
 unQualified :: forall a. CF.Qualified a -> a
 unQualified (CF.Qualified _ x) = x
+
+unProper :: CF.ProperName -> String
+unProper (CF.ProperName x) = x

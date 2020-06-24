@@ -1,14 +1,14 @@
 module Main where
 
 import Prelude
-import CodeGen.Lua (impToLua, mkModName)
+import CodeGen.Lua (impToLua, mkModName, modPathJoiner)
 import CodeGen.Lua.Printer (print)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Except (runExcept)
 import CoreFn.FromJSON (moduleFromJSON)
 import CoreFn.Module (Module)
 import CoreImp.Desugar (fnToImp)
-import CoreImp.Optimizer (optimize)
+import CoreImp.Module (optimizeModule)
 import Data.Array (delete)
 import Data.Either (Either(..))
 import Data.Foldable (for_)
@@ -20,46 +20,51 @@ import EmptyAnn (EmptyAnn)
 import Node.Encoding (Encoding(..))
 import Node.FS.Stats as St
 import Node.FS.Sync as S
+import Node.Path (FilePath)
 
-baseDir :: String
+baseDir :: FilePath
 baseDir = "output"
 
-outDir :: String
+outDir :: FilePath
 outDir = "outlua"
 
 main :: Effect Unit
 main = do
-  isOutDir <- S.exists outDir
-  when (not isOutDir) $ S.mkdir outDir
   dirs <- S.readdir baseDir
   let
-    dirs' = delete "cache-db.json" dirs
-  for_ dirs' \modName -> do
-    isJson <- S.exists (jsonPath modName)
-    isLua <- S.exists (luaPath modName)
+    modDirs = delete "cache-db.json" dirs
+  orMakeDir outDir
+  for_ modDirs \modName -> do
+    let
+      jsonPath = joinWith "/" [ baseDir, modName, "corefn.json" ]
+
+      replacedModName = replaceAll (Pattern ".") (Replacement modPathJoiner) modName
+
+      luaPath = joinWith "/" [ outDir, replacedModName, "index.lua" ]
+    isJson <- S.exists jsonPath
+    isLua <- S.exists luaPath
     -- process only modules which has corefn
     when isJson do
       if isLua then do
-        statJson <- S.stat (jsonPath modName)
-        statLua <- S.stat (luaPath modName)
+        statJson <- S.stat jsonPath
+        statLua <- S.stat luaPath
         let
           mtimeJson = St.modifiedTime statJson
 
           mtimeLua = St.modifiedTime statLua
         -- process only modules modified
         when (mtimeLua < mtimeJson) do
-          processJson modName
+          processJson jsonPath
       else do
-        processJson modName
+        processJson jsonPath
   info "--- transpiled! ---"
 
-processJson :: String -> Effect Unit
-processJson modName = do
-  json <- S.readTextFile UTF8 (jsonPath modName)
+processJson :: FilePath -> Effect Unit
+processJson jsonPath = do
+  json <- S.readTextFile UTF8 jsonPath
   case runExcept (moduleFromJSON json) of
     Left err -> error $ show err
-    Right mod -> do
-      transpile mod.module
+    Right mod -> transpile mod.module
 
 transpile :: Module EmptyAnn -> Effect Unit
 transpile mod = do
@@ -68,20 +73,16 @@ transpile mod = do
     Left err -> error $ show err
     Right impMod -> do
       let
-        optMod = impMod { moduleStats = map optimize impMod.moduleStats }
+        optMod = optimizeModule impMod
 
         lua = impToLua optMod
-      log $ mkModName impMod.moduleName
-      let
+
         modDir = joinWith "/" [ outDir, mkModName impMod.moduleName ]
-      isModDir <- S.exists modDir
-      when (not isModDir) $ S.mkdir modDir
+      orMakeDir modDir
       S.writeTextFile UTF8 (joinWith "/" [ modDir, "index.lua" ]) (print lua)
+      log $ mkModName impMod.moduleName
 
-jsonPath :: String -> String
-jsonPath modName = joinWith "/" [ baseDir, modName, "corefn.json" ]
-
-luaPath :: String -> String
-luaPath modName = joinWith "/" [ outDir, modName', "index.lua" ]
-  where
-  modName' = replaceAll (Pattern ".") (Replacement "_") modName
+orMakeDir :: FilePath -> Effect Unit
+orMakeDir dir = do
+  isDir <- S.exists dir
+  when (not isDir) $ S.mkdir dir

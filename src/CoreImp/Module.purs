@@ -1,8 +1,10 @@
 module CoreImp.Module where
 
+import Prelude
 import CoreFn.Ident (Ident) as CF
 import CoreFn.Names (ModuleName) as CF
 import CoreImp.AST as CI
+import CoreImp.Optimizer (optimize)
 
 type Module
   = { moduleName :: CF.ModuleName
@@ -11,3 +13,6 @@ type Module
     , moduleForeigns :: Array CF.Ident
     , moduleStats :: Array CI.Stat
     }
+
+optimizeModule :: Module -> Module
+optimizeModule m = m { moduleStats = map optimize m.moduleStats }
