@@ -162,7 +162,8 @@ joinEmpty = intercalate (text "")
 indent :: DOC -> DOC
 indent = nest 4
 
+-- NOTE: pretty each stat because large DOC sometime makes stack overflow for now...
 print :: Array Stat -> String
-print = pretty top <<< intercalate line <<< map statEndWithLine
+print = intercalate "\n" <<< map (pretty top <<< statEndWithLine)
   where
   statEndWithLine s = stat s <> line
