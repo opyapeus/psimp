@@ -5,6 +5,7 @@ import CodeGen.Lua (impToLua, mkModName, modPathJoiner)
 import CodeGen.Lua.Printer (print)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Except (runExcept)
+import CoreFn.Ann (Ann)
 import CoreFn.FromJSON (moduleFromJSON)
 import CoreFn.Module (Module)
 import CoreImp.Desugar (fnToImp)
@@ -16,7 +17,6 @@ import Data.String (Pattern(..), Replacement(..), joinWith, replaceAll)
 import Effect (Effect)
 import Effect.Class.Console (info, log)
 import Effect.Console (error)
-import EmptyAnn (EmptyAnn)
 import Node.Encoding (Encoding(..))
 import Node.FS.Stats as St
 import Node.FS.Sync as S
@@ -66,7 +66,7 @@ processJson jsonPath = do
     Left err -> error $ show err
     Right mod -> transpile mod.module
 
-transpile :: Module EmptyAnn -> Effect Unit
+transpile :: Module Ann -> Effect Unit
 transpile mod = do
   res <- try $ fnToImp mod
   case res of

@@ -5,6 +5,7 @@ import CodeGen.Lua (impToLua)
 import CodeGen.Lua.Printer (print)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Except (runExcept)
+import CoreFn.Ann (Ann)
 import CoreFn.FromJSON (moduleFromJSON)
 import CoreFn.Module (Module)
 import CoreImp.Desugar (fnToImp)
@@ -19,12 +20,16 @@ import Node.FS.Sync as S
 main :: Effect Unit
 main = do
   json <- S.readTextFile UTF8 "output/Sample/corefn.json"
+  -- to show module data except annotation
   case runExcept (moduleFromJSON json) of
     Left err -> log $ show err
     Right mod -> do
-      log $ show mod
+      log $ show (mod.module :: Module EmptyAnn)
       log ""
-      res <- try $ fnToImp (mod.module :: Module EmptyAnn)
+  case runExcept (moduleFromJSON json) of
+    Left err -> log $ show err
+    Right mod -> do
+      res <- try $ fnToImp (mod.module :: Module Ann)
       case res of
         Left err -> log $ show err
         Right impMod -> do

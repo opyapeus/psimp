@@ -25,3 +25,10 @@ apm [ a ] = a
 apm [ a, b ] = a <> "," <> b
 
 apm _ = "some"
+
+-- Newtype
+newtype Name
+  = Name String
+
+npm :: Name -> String
+npm (Name s) = s

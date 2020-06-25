@@ -2,10 +2,12 @@ module CoreImp.Desugar where
 
 import Prelude
 import Control.Monad.Error.Class (class MonadThrow, throwError)
+import CoreFn.Ann (Ann(..)) as CF
 import CoreFn.Binders (Binder(..)) as CF
 import CoreFn.Expr (Bind(..), CaseAlternative(..), Expr(..), Guard) as CF
 import CoreFn.Ident (Ident(..)) as CF
 import CoreFn.Literal (Literal(..)) as CF
+import CoreFn.Meta (Meta(..)) as CF
 import CoreFn.Module (Module(..), ModuleImport(..)) as CF
 import CoreImp.AST (BinOp(..), Expr(..), Stat(..), UnOp(..))
 import CoreImp.Constant (primModules)
@@ -21,9 +23,9 @@ import Effect.Exception (Error, error)
 import PSString (PSString(..))
 
 fnToImp ::
-  forall m a.
+  forall m.
   MonadThrow Error m =>
-  CF.Module a -> m CI.Module
+  CF.Module CF.Ann -> m CI.Module
 fnToImp (CF.Module m) = do
   stats <- concat <$> traverse decl m.moduleDecls
   let
@@ -40,7 +42,7 @@ fnToImp (CF.Module m) = do
       , moduleStats: stats
       }
   where
-  decl :: CF.Bind a -> m (Array Stat)
+  decl :: CF.Bind CF.Ann -> m (Array Stat)
   decl (CF.NonRec _ ident expr) = singleton <$> assign ident expr
 
   decl (CF.Rec vals) =
@@ -48,10 +50,10 @@ fnToImp (CF.Module m) = do
       (\(Tuple (Tuple _ ident) expr) -> assign ident expr)
       vals
 
-  assign :: CF.Ident -> CF.Expr a -> m Stat
+  assign :: CF.Ident -> CF.Expr CF.Ann -> m Stat
   assign ident expr = Assign ident <$> toAST expr
 
-  toAST :: CF.Expr a -> m Expr
+  toAST :: CF.Expr CF.Ann -> m Expr
   toAST (CF.Literal _ lit) = Literal <$> traverseLiteral toAST lit
 
   toAST (CF.Accessor _ k v) = Accessor (PSString k) <$> toAST v
@@ -83,7 +85,7 @@ fnToImp (CF.Module m) = do
   return :: Expr -> Array Stat
   return = singleton <<< Return
 
-  cases :: Array (CF.Expr a) -> Array (CF.CaseAlternative a) -> m (Array Stat)
+  cases :: Array (CF.Expr CF.Ann) -> Array (CF.CaseAlternative CF.Ann) -> m (Array Stat)
   cases args alts = do
     vals <- traverse toAST args
     body <-
@@ -95,7 +97,7 @@ fnToImp (CF.Module m) = do
         alts
     pure $ concat body
     where
-    guards :: Either (Array (Tuple (CF.Guard a) (CF.Expr a))) (CF.Expr a) -> m (Array Stat)
+    guards :: Either (Array (Tuple (CF.Guard CF.Ann) (CF.Expr CF.Ann))) (CF.Expr CF.Ann) -> m (Array Stat)
     guards (Left gs) =
       traverse
         (\(Tuple cond val) -> If <$> toAST cond <*> map return (toAST val))
@@ -103,7 +105,7 @@ fnToImp (CF.Module m) = do
 
     guards (Right v) = return <$> toAST v
 
-    go :: Array Expr -> Array Stat -> Array (CF.Binder a) -> m (Array Stat)
+    go :: Array Expr -> Array Stat -> Array (CF.Binder CF.Ann) -> m (Array Stat)
     go _ done [] = pure done
 
     go vals' done binders = case uncons vals', uncons binders of
@@ -112,20 +114,23 @@ fnToImp (CF.Module m) = do
         binder v done' b
       _, _ -> throwError $ error "Invalid arguments to binders"
 
-  binder :: Expr -> Array Stat -> CF.Binder a -> m (Array Stat)
+  binder :: Expr -> Array Stat -> CF.Binder CF.Ann -> m (Array Stat)
   binder _ done (CF.NullBinder _) = pure done
 
   binder val done (CF.LiteralBinder _ l) = literalBinder val done l
 
   binder val done (CF.VarBinder _ ident) = pure $ [ Assign ident val ] <> done
 
-  binder val done (CF.ConstructorBinder _ tn cn bs) = do
+  -- NOTE: Newtype is treated as Abs in CoreFn
+  binder val done (CF.ConstructorBinder (CF.Ann { sourceSpan: _, comments: _, type: _, meta: Just CF.IsNewtype }) _ _ [ b ]) = binder val done b
+
+  binder val done (CF.ConstructorBinder _ _ cn bs) = do
     stats <- go bs done
     pure [ If (TagOf cn val) stats ]
     where
     fieldCount = length bs
 
-    go :: Array (CF.Binder a) -> Array Stat -> m (Array Stat)
+    go :: Array (CF.Binder CF.Ann) -> Array Stat -> m (Array Stat)
     go binds done' = case uncons binds of
       Just { head: b, tail: bs' } -> do
         let
@@ -141,7 +146,7 @@ fnToImp (CF.Module m) = do
     stats <- binder val done b
     pure $ [ Assign ident val ] <> stats
 
-  literalBinder :: Expr -> Array Stat -> CF.Literal (CF.Binder a) -> m (Array Stat)
+  literalBinder :: Expr -> Array Stat -> CF.Literal (CF.Binder CF.Ann) -> m (Array Stat)
   literalBinder val done (CF.NumericLiteral n) = pure [ If (Binary Equal val (Literal (CF.NumericLiteral n))) done ]
 
   literalBinder val done (CF.CharLiteral c) = pure [ If (Binary Equal val (Literal (CF.CharLiteral c))) done ]
@@ -154,7 +159,7 @@ fnToImp (CF.Module m) = do
 
   literalBinder val done (CF.ObjectLiteral bs) = go done bs
     where
-    go :: Array Stat -> Array (Tuple String (CF.Binder a)) -> m (Array Stat)
+    go :: Array Stat -> Array (Tuple String (CF.Binder CF.Ann)) -> m (Array Stat)
     go done' kvs = case uncons kvs of
       Just { head: Tuple prop b, tail: bs' } -> do
         let
@@ -167,7 +172,7 @@ fnToImp (CF.Module m) = do
     stats <- go done 0 bs
     pure [ If (Binary Equal (Unary Length val) (Literal (CF.NumericLiteral (Left (length bs))))) stats ]
     where
-    go :: Array Stat -> Int -> Array (CF.Binder a) -> m (Array Stat)
+    go :: Array Stat -> Int -> Array (CF.Binder CF.Ann) -> m (Array Stat)
     go done' index binds = case uncons binds of
       Just { head: b, tail: bs' } -> do
         let
