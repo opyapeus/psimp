@@ -20,30 +20,30 @@ import PSString (PSString(..))
 
 impToLua :: CI.Module -> Array L.Stat
 impToLua mod =
-  imps
-    <> fimp
-    <> fbind
+  requires
+    <> foreignRequires
+    <> foreignBinds
     <> map statToLua mod.moduleStats
-    <> [ L.Return modObj ]
+    <> [ L.Return moduleObj ]
   where
-  modObj =
+  moduleObj =
     L.Literal <<< L.Object
       $ map
           (\e -> Tuple (identToLua e) (L.Var (identToLua e)))
           mod.moduleExports
 
-  imps =
+  requires =
     map
       (\modName -> L.LocalAssign (mkModName modName) (L.Require (joinWith "/" [ mkModPath modName, indexIdent ])))
       mod.moduleImports
 
-  fimp =
+  foreignRequires =
     if null mod.moduleForeigns then
       []
     else
       [ L.LocalAssign foreignIdent (L.Require (joinWith "/" [ mkModPath mod.moduleName, foreignIdent ])) ]
 
-  fbind =
+  foreignBinds =
     map (\f -> LocalAssign (identToLua f) (L.Accessor (identToLua f) (L.Var foreignIdent)))
       mod.moduleForeigns
 

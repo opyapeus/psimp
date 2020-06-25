@@ -1,28 +1,40 @@
 # pslua
 
-generate corefn of example modules
+A purescript transpiler for lua language.
+
+※ Not well tested.
+
+## Requirements
+
+- spago
+- purescript
+- node
+- lua
+
+## Code Generation
+
+generate `corefn.json` of example modules
+
 ```
 spago -x example.dhall build --purs-args "-g corefn"
 ```
 
-generate lua modules
+generate lua files to `./outlua`
+
 ```
 spago run
 ```
 
-copy ffi files manually
+copy ffi files (manually for now) from [pslua-ffi](https://github.com/opyapeus/pslua-ffi)
+
 ```
-cp -r [pslua-ffi]/effect/* ./outlua
-cp -r [pslua-ffi]/console/* ./outlua
-cp -r [pslua-ffi]/prelude/* ./outlua
+cp -r [somedir]/pslua-ffi/effect/* ./outlua
+cp -r [somedir]/pslua-ffi/console/* ./outlua
+cp -r [somedir]/pslua-ffi/prelude/* ./outlua
 ```
 
 run
+
 ```
 LUA_PATH=outlua/?.lua lua main.lua
-```
-
-all except ffi
-```
-spago -x example.dhall build --purs-args "-g corefn" && spago run && LUA_PATH=outlua/?.lua lua main.lua
 ```

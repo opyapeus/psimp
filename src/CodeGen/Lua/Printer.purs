@@ -1,6 +1,6 @@
 module CodeGen.Lua.Printer where
 
-import Prelude hiding (Ordering(..))
+import Prelude
 import CodeGen.Lua.AST (BinOp(..), Expr(..), Lit(..), Stat(..), UnOp(..))
 import Data.Foldable (intercalate)
 import Data.Tuple (Tuple(..))
