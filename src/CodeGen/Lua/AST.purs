@@ -14,6 +14,7 @@ data Stat
 
 data Expr
   = Var String
+  | Clone Expr
   | Literal Lit
   | Accessor String Expr
   | Indexer Int Expr
@@ -59,7 +60,8 @@ instance showStat :: Show Stat where
   show (Return x) = showCtor "Return" [ show x ]
 
 instance showExpr :: Show Expr where
-  show (Var x) = showCtor "Var" [ show x ]
+  show (Var v) = showCtor "Var" [ show v ]
+  show (Clone x) = showCtor "Clone" [ show x ]
   show (Literal lit) = showCtor "Literal" [ show lit ]
   show (Accessor a x) = showCtor "Accessor" [ show a, show x ]
   show (Indexer i x) = showCtor "Indexer" [ show i, show x ]

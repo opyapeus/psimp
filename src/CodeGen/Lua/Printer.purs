@@ -69,6 +69,20 @@ stat (Return x) = joinSpace [ word.return, expr x ]
 expr :: Expr -> DOC
 expr (Var v) = text v
 
+-- REVIEW: clean way to copy object
+expr (Clone x) =
+  text
+    """(function()
+                local _res = {}
+                for _k, _v in pairs("""
+    <> expr x
+    <> text
+        """) do
+                    _res[_k] = _v
+                end
+                return _res
+            end)()"""
+
 expr (Literal l) = lit l
 
 expr (Accessor a x) = joinEmpty [ expr x, dot, text a ]

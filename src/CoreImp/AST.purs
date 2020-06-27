@@ -7,7 +7,6 @@ import CoreFn.Names (Qualified) as CF
 import Data.Foldable (intercalate)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
-import Data.Tuple (Tuple)
 import PSString (PSString)
 
 -- | Imperative language AST that does not need to declare type explicitly
@@ -18,8 +17,6 @@ data Expr
   | Accessor PSString Expr
   -- | Array accessor
   | Indexer Int Expr
-  -- | Partial object update
-  | ObjectUpdate Expr (Array (Tuple PSString Expr))
   -- | Function application
   | Apply Expr Expr
   -- | Variable
@@ -36,6 +33,10 @@ data Expr
 data Stat
   -- | Assignment
   = Assign CF.Ident Expr
+  -- | Update assignment
+  | UpdateAssign Expr Expr
+  -- | Create ocject clone
+  | ObjectCopy CF.Ident Expr
   -- | Conditional statement
   | If Expr (Array Stat)
   -- | Return value
@@ -45,7 +46,6 @@ instance showExpr :: Show Expr where
   show (Literal lit) = showCtor "Literal" [ show lit ]
   show (Accessor k v) = showCtor "Accessor" [ show k, show v ]
   show (Indexer i v) = showCtor "Indexer" [ show i, show v ]
-  show (ObjectUpdate obj kvs) = showCtor "ObjectUpdate" [ show obj, show kvs ]
   show (Apply f x) = showCtor "Apply" [ show f, show x ]
   show (Variable qi) = showCtor "Variable" [ show qi ]
   show (Function arg stats) = showCtor "Function" [ show arg, show stats ]
@@ -55,6 +55,8 @@ instance showExpr :: Show Expr where
 
 instance showStat :: Show Stat where
   show (Assign ident val) = showCtor "Assign" [ show ident, show val ]
+  show (UpdateAssign obj new) = showCtor "UpdateAssign" [ show obj, show new ]
+  show (ObjectCopy ident obj) = showCtor "ObjectCopy" [ show ident, show obj ]
   show (If cond stats) = showCtor "If" [ show cond, show stats ]
   show (Return val) = showCtor "Return" [ show val ]
 
@@ -106,8 +108,6 @@ everywhere f = go'
 
   go (Indexer i x) = f (Indexer i (go x))
 
-  go (ObjectUpdate obj kvs) = f (ObjectUpdate (go obj) (map (map go) kvs))
-
   go (Apply f' x) = f (Apply (go f') (go x))
 
   go (Function arg stats) = f (Function arg (map go' stats))
@@ -120,6 +120,10 @@ everywhere f = go'
 
   go' :: Stat -> Stat
   go' (Assign ident var) = (Assign ident (go var))
+
+  go' (UpdateAssign obj new) = (UpdateAssign (go obj) (go new))
+
+  go' (ObjectCopy ident var) = (ObjectCopy ident (go var))
 
   go' (If cond stats) = (If (go cond) (map go' stats))
 

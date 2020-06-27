@@ -15,7 +15,6 @@ import CoreImp.Constant (primModules)
 import CoreImp.Misc (traverseLiteral)
 import CoreImp.Module as CI
 import Data.Array (concat, cons, difference, length, singleton, uncons)
-import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Data.Traversable (traverse)
@@ -59,7 +58,17 @@ fnToImp (CF.Module m) = do
 
   toAST (CF.Accessor _ k v) = Accessor (PSString k) <$> toAST v
 
-  toAST (CF.ObjectUpdate _ obj kvs) = ObjectUpdate <$> toAST obj <*> traverse (traverse toAST) (lmap PSString <$> kvs)
+  toAST (CF.ObjectUpdate _ obj kvs) =
+    iife
+      <$> do
+          obj' <- toAST obj
+          kvs' <- traverse (traverse toAST) kvs
+          pure
+            $ [ ObjectCopy resultIdent obj' ]
+            <> map (\(Tuple k v) -> UpdateAssign (Accessor (PSString k) (Variable (CF.Qualified Nothing resultIdent))) v) kvs'
+            <> [ Return (Variable (CF.Qualified Nothing resultIdent)) ]
+    where
+    resultIdent = CF.Ident "_ci_obj"
 
   toAST (CF.Abs _ arg body) = Function arg <$> map return (toAST body)
 
@@ -94,7 +103,7 @@ fnToImp (CF.Module m) = do
   iife :: Array Stat -> Expr
   iife stats = Apply (Function (CF.Ident unusedVarName) stats) Unit
     where
-    unusedVarName = "_unused_coreimp"
+    unusedVarName = "_ci_unused"
 
   return :: Expr -> Array Stat
   return = singleton <<< Return

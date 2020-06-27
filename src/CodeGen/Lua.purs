@@ -8,8 +8,8 @@ import CoreFn.Literal (Literal(..)) as CF
 import CoreFn.Names (ModuleName(..), ProperName(..), Qualified(..)) as CF
 import CoreImp.AST (BinOp(..), Expr(..), Stat(..), UnOp(..)) as CI
 import CoreImp.Module (Module) as CI
-import Data.Array (cons, elem, foldr, null)
-import Data.Bifunctor (lmap)
+import Data.Array (elem, null)
+import Data.Bifunctor (bimap, lmap)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Data.String (joinWith)
@@ -56,6 +56,10 @@ impToLua mod =
   statToLua :: CI.Stat -> L.Stat
   statToLua (CI.Assign ident expr) = L.LocalAssign (identToLua ident) (exprToLua expr)
 
+  statToLua (CI.UpdateAssign new expr) = L.Assign (exprToLua new) (exprToLua expr)
+
+  statToLua (CI.ObjectCopy ident expr) = L.LocalAssign (identToLua ident) (L.Clone (exprToLua expr))
+
   statToLua (CI.If expr stats) = L.If (exprToLua expr) $ map statToLua stats
 
   statToLua (CI.Return expr) = L.Return (exprToLua expr)
@@ -67,24 +71,13 @@ impToLua mod =
 
   exprToLua (CI.Indexer i expr) = L.Indexer (luaIndex i) (exprToLua expr)
 
-  exprToLua (CI.ObjectUpdate expr kvs) =
-    iife
-      $ map
-          (\(Tuple k v) -> L.Assign (L.Accessor (psstringToLua k) (exprToLua expr)) (exprToLua v))
-          kvs
-      <> [ L.Return (exprToLua expr) ]
-
   exprToLua (CI.Apply er el) = L.App (exprToLua er) (exprToLua el)
 
   exprToLua (CI.Variable qi) = qiToExpr qi
 
   exprToLua (CI.Function arg stats) = L.Function (identToLua arg) $ map statToLua stats
 
-  exprToLua (CI.Binary op x y) =
-    L.Binary
-      (binary op)
-      (exprToLua x)
-      (exprToLua y)
+  exprToLua (CI.Binary op x y) = L.Binary (binary op) (exprToLua x) (exprToLua y)
 
   exprToLua (CI.Unary op x) = L.Unary (unary op) (exprToLua x)
 
@@ -137,17 +130,7 @@ impToLua mod =
 
   literal (CF.ArrayLiteral xs) = L.Array $ map (exprToLua) xs
 
-  literal (CF.ObjectLiteral kvs) =
-    L.Object
-      $ foldr
-          (\(Tuple k v) -> cons (Tuple (psstringToLua k) (exprToLua v)))
-          []
-          (lmap PSString <$> kvs)
-
-iife :: Array L.Stat -> L.Expr
-iife stats = L.App (L.Function unusedVarName stats) L.Nil
-  where
-  unusedVarName = "_unused_lua"
+  literal (CF.ObjectLiteral kvs) = L.Object $ bimap psstringToLua exprToLua <$> lmap PSString <$> kvs
 
 mkModName :: CF.ModuleName -> String
 mkModName (CF.ModuleName pns) = joinWith "_" $ map properToLua pns
@@ -158,9 +141,6 @@ mkModPath (CF.ModuleName pns) = joinWith modPathJoiner $ map unProper pns
 modPathJoiner :: String
 modPathJoiner = "_"
 
-ctorTagIdent :: String
-ctorTagIdent = "tag"
-
 foreignIdent :: String
 foreignIdent = "foreign"
 
@@ -170,9 +150,6 @@ indexIdent = "index"
 -- NOTE: lua index starts with 1
 luaIndex :: Int -> Int
 luaIndex = (+) 1
-
-unQualified :: forall a. CF.Qualified a -> a
-unQualified (CF.Qualified _ x) = x
 
 unProper :: CF.ProperName -> String
 unProper (CF.ProperName x) = x
