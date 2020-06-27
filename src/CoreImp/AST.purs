@@ -44,6 +44,8 @@ data Stat
   | If Expr (Array Stat)
   -- | Return value
   | Return Expr
+  -- | Throw error
+  | Throw String
 
 instance showExpr :: Show Expr where
   show (Literal lit) = showCtor "Literal" [ show lit ]
@@ -62,6 +64,7 @@ instance showStat :: Show Stat where
   show (ObjectCopy ident obj) = showCtor "ObjectCopy" [ show ident, show obj ]
   show (If cond stats) = showCtor "If" [ show cond, show stats ]
   show (Return val) = showCtor "Return" [ show val ]
+  show (Throw s) = showCtor "Throw" [ show s ]
 
 showCtor :: String -> Array String -> String
 showCtor name args =
@@ -131,6 +134,8 @@ everywhere f g = go'
   go' (If cond stats) = g $ If (go cond) (map go' stats)
 
   go' (Return x) = g $ Return (go x)
+
+  go' other = g other
 
   go'' :: CF.Literal Expr -> CF.Literal Expr
   go'' (CF.ArrayLiteral xs) = CF.ArrayLiteral (map go xs)

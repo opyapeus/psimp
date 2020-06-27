@@ -64,6 +64,8 @@ impToLua mod =
 
   statToLua (CI.Return expr) = L.Return (exprToLua expr)
 
+  statToLua (CI.Throw s) = L.Throw s
+
   exprToLua :: CI.Expr -> L.Expr
   exprToLua (CI.Literal l) = L.Literal (literal l)
 

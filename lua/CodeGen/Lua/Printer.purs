@@ -9,6 +9,7 @@ import Prettier.Printer (DOC, line, nest, pretty, text)
 word ::
   { else :: DOC
   , end :: DOC
+  , error :: DOC
   , function :: DOC
   , if :: DOC
   , local :: DOC
@@ -25,6 +26,7 @@ word =
   , then: text "then"
   , else: text "else"
   , require: text "require"
+  , error: text "error"
   }
 
 bracket ::
@@ -65,6 +67,8 @@ stat (If cond stats) =
     <> word.end
 
 stat (Return x) = joinSpace [ word.return, expr x ]
+
+stat (Throw s) = joinEmpty [ word.error, bracket.roundOpen, text (show s), bracket.roundClose ]
 
 expr :: Expr -> DOC
 expr (Var v) = text v

@@ -11,6 +11,7 @@ data Stat
   | Assign Expr Expr
   | If Expr (Array Stat)
   | Return Expr
+  | Throw String
 
 data Expr
   = Var String
@@ -58,6 +59,7 @@ instance showStat :: Show Stat where
   show (Assign a b) = showCtor "Assign" [ show a, show b ]
   show (If cond stats) = showCtor "If" [ show cond, show stats ]
   show (Return x) = showCtor "Return" [ show x ]
+  show (Throw s) = showCtor "Throw" [ show s ]
 
 instance showExpr :: Show Expr where
   show (Var v) = showCtor "Var" [ show v ]

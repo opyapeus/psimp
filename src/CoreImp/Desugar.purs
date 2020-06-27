@@ -118,7 +118,9 @@ fnToImp (CF.Module m) = do
             go vals res ca.caseAlternativeBinders
         )
         alts
-    pure $ concat body
+    pure
+      $ concat body
+      <> [ Throw "Failed to pattern match." ] -- NOTE: this is removed in optimization when it is after return.
     where
     guards :: Either (Array (Tuple (CF.Guard CF.Ann) (CF.Expr CF.Ann))) (CF.Expr CF.Ann) -> m (Array Stat)
     guards (Left gs) =

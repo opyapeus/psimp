@@ -3,16 +3,38 @@ module CoreImp.Optimizer where
 import Prelude
 import CoreFn.Ident (Ident(..)) as CF
 import CoreFn.Names (ModuleName(..), ProperName(..), Qualified(..)) as CF
-import CoreImp.AST (BinOp(..), Expr(..), Stat, UnOp(..), everywhere)
+import CoreImp.AST (BinOp(..), Expr(..), Stat(..), UnOp(..), everywhere)
+import Data.Array (findIndex, take)
 import Data.Foldable (any)
 import Data.Maybe (Maybe(..))
 
 optimize :: Stat -> Stat
 optimize = enhance <<< necessary
   where
-  necessary = removeUndefinedApp
+  necessary =
+    removeCodeAfterReturnStatements
+      <<< removeUndefinedApp
 
   enhance = inlineCommonOperators
+
+removeCodeAfterReturnStatements :: Stat -> Stat
+removeCodeAfterReturnStatements = everywhere convertExpr convertStat
+  where
+  convertExpr (Function arg stats) = Function arg $ modify stats
+
+  convertExpr a = a
+
+  convertStat (If cond stats) = If cond $ modify stats
+
+  convertStat a = a
+
+  modify ss = case findIndex isReturn ss of
+    Just i -> take (i + 1) ss
+    Nothing -> ss
+    where
+    isReturn (Return _) = true
+
+    isReturn _ = false
 
 removeUndefinedApp :: Stat -> Stat
 removeUndefinedApp = everywhere convert identity

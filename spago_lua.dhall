@@ -9,5 +9,5 @@ in conf //
   , sources = conf.sources #
     [ "lua/**/*.purs"
     , "test/**/*.purs"
-  ]
+    ]
 }
