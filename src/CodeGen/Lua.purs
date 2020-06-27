@@ -1,7 +1,6 @@
 module CodeGen.Lua where
 
 import Prelude
-import CodeGen.Lua.AST (Expr(..), Stat(..))
 import CodeGen.Lua.AST as L
 import CodeGen.Lua.Common (identToLua, properToLua, psstringToLua)
 import CoreFn.Ident (Ident) as CF
@@ -44,13 +43,13 @@ impToLua mod =
       [ L.LocalAssign foreignIdent (L.Require (joinWith "/" [ mkModPath mod.moduleName, foreignIdent ])) ]
 
   foreignBinds =
-    map (\f -> LocalAssign (identToLua f) (L.Accessor (identToLua f) (L.Var foreignIdent)))
+    map (\f -> L.LocalAssign (identToLua f) (L.Accessor (identToLua f) (L.Var foreignIdent)))
       mod.moduleForeigns
 
-  qiToExpr :: CF.Qualified CF.Ident -> Expr
+  qiToExpr :: CF.Qualified CF.Ident -> L.Expr
   qiToExpr (CF.Qualified (Just mn) ident)
-    | mn /= mod.moduleName = Accessor (identToLua ident) (L.Var (mkModName mn))
-    | mn == mod.moduleName, elem ident mod.moduleForeigns = Accessor (identToLua ident) (L.Var foreignIdent)
+    | mn /= mod.moduleName = L.Accessor (identToLua ident) (L.Var (mkModName mn))
+    | mn == mod.moduleName, elem ident mod.moduleForeigns = L.Accessor (identToLua ident) (L.Var foreignIdent)
 
   qiToExpr (CF.Qualified _ ident) = L.Var $ identToLua ident
 
@@ -145,7 +144,7 @@ impToLua mod =
           []
           (lmap PSString <$> kvs)
 
-iife :: Array Stat -> Expr
+iife :: Array L.Stat -> L.Expr
 iife stats = L.App (L.Function unusedVarName stats) L.Nil
   where
   unusedVarName = "_unused_lua"
