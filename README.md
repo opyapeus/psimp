@@ -22,7 +22,7 @@ spago -x example.dhall build --purs-args "-g corefn"
 generate lua files to `./outlua`
 
 ```
-spago run
+spago -x spago_lua.dhall run
 ```
 
 copy ffi files (manually for now) from [pslua-ffi](https://github.com/opyapeus/pslua-ffi)
