@@ -15,14 +15,14 @@ optimize = enhance <<< necessary
   enhance = inlineCommonOperators
 
 removeUndefinedApp :: Stat -> Stat
-removeUndefinedApp = everywhere convert
+removeUndefinedApp = everywhere convert identity
   where
   convert (Apply f (Variable (CF.Qualified (Just (CF.ModuleName [ (CF.ProperName "Prim") ])) (CF.Ident "undefined")))) = Apply f Unit
 
   convert a = a
 
 inlineCommonOperators :: Stat -> Stat
-inlineCommonOperators = everywhere convert
+inlineCommonOperators = everywhere convert identity
   where
   convert :: Expr -> Expr
   convert a@(Apply (Apply (Apply f d) x) y) = case f, d of

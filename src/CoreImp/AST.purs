@@ -9,7 +9,10 @@ import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import PSString (PSString)
 
--- | Imperative language AST that does not need to declare type explicitly
+-- Imperative core AST for languages
+-- - no need to declare type explicitly
+-- - support currying
+-- - have garbage collection
 data Expr
   -- | Literal value
   = Literal (CF.Literal Expr)
@@ -98,40 +101,40 @@ instance showBinOp :: Show BinOp where
 instance showUnOp :: Show UnOp where
   show = genericShow
 
-everywhere :: (Expr -> Expr) -> Stat -> Stat
-everywhere f = go'
+everywhere :: (Expr -> Expr) -> (Stat -> Stat) -> Stat -> Stat
+everywhere f g = go'
   where
   go :: Expr -> Expr
-  go (Literal lit) = f (Literal (go'' lit))
+  go (Literal lit) = f $ Literal (go'' lit)
 
-  go (Accessor a x) = f (Accessor a (go x))
+  go (Accessor a x) = f $ Accessor a (go x)
 
-  go (Indexer i x) = f (Indexer i (go x))
+  go (Indexer i x) = f $ Indexer i (go x)
 
-  go (Apply f' x) = f (Apply (go f') (go x))
+  go (Apply f' x) = f $ Apply (go f') (go x)
 
-  go (Function arg stats) = f (Function arg (map go' stats))
+  go (Function arg stats) = f $ Function arg (map go' stats)
 
-  go (Binary op x y) = f (Binary op (go x) (go y))
+  go (Binary op x y) = f $ Binary op (go x) (go y)
 
-  go (Unary op x) = f (Unary op (go x))
+  go (Unary op x) = f $ Unary op (go x)
 
   go other = f other
 
   go' :: Stat -> Stat
-  go' (Assign ident var) = (Assign ident (go var))
+  go' (Assign ident var) = g $ Assign ident (go var)
 
-  go' (UpdateAssign obj new) = (UpdateAssign (go obj) (go new))
+  go' (UpdateAssign obj new) = g $ UpdateAssign (go obj) (go new)
 
-  go' (ObjectCopy ident var) = (ObjectCopy ident (go var))
+  go' (ObjectCopy ident var) = g $ ObjectCopy ident (go var)
 
-  go' (If cond stats) = (If (go cond) (map go' stats))
+  go' (If cond stats) = g $ If (go cond) (map go' stats)
 
-  go' (Return x) = (Return (go x))
+  go' (Return x) = g $ Return (go x)
 
   go'' :: CF.Literal Expr -> CF.Literal Expr
-  go'' (CF.ArrayLiteral xs) = (CF.ArrayLiteral (map go xs))
+  go'' (CF.ArrayLiteral xs) = CF.ArrayLiteral (map go xs)
 
-  go'' (CF.ObjectLiteral kvs) = (CF.ObjectLiteral (map (map go) kvs))
+  go'' (CF.ObjectLiteral kvs) = CF.ObjectLiteral (map (map go) kvs)
 
   go'' other = other
