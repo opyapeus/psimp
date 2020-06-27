@@ -9,7 +9,7 @@ import CoreFn.Literal (Literal(..)) as CF
 import CoreFn.Names (ModuleName(..), ProperName(..), Qualified(..)) as CF
 import CoreImp.AST (BinOp(..), Expr(..), Stat(..), UnOp(..)) as CI
 import CoreImp.Module (Module) as CI
-import Data.Array (cons, elem, foldr, null, uncons)
+import Data.Array (cons, elem, foldr, null)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
@@ -64,33 +64,6 @@ impToLua mod =
   exprToLua :: CI.Expr -> L.Expr
   exprToLua (CI.Literal l) = L.Literal (literal l)
 
-  exprToLua (CI.Constructor cn idents) = go idents []
-    where
-    go :: Array CF.Ident -> Array L.Stat -> L.Expr
-    go [] done =
-      iife
-        $ [ L.LocalAssign cn'
-              ( L.Literal
-                  ( L.Object
-                      [ Tuple ctorTagIdent (L.Literal (L.String cn')) ]
-                  )
-              )
-          ]
-        <> done
-        <> [ L.Return obj ]
-
-    go is done = case uncons is of
-      Just { head: i, tail: rem } -> L.Function arg [ L.Return (go rem done') ]
-        where
-        arg = identToLua i
-
-        done' = done <> [ L.Assign (L.Accessor arg obj) (L.Var arg) ]
-      Nothing -> L.Nil -- unreachable      
-
-    cn' = properToLua cn
-
-    obj = L.Var cn'
-
   exprToLua (CI.Accessor k expr) = L.Accessor (psstringToLua k) (exprToLua expr)
 
   exprToLua (CI.Indexer i expr) = L.Indexer (luaIndex i) (exprToLua expr)
@@ -107,12 +80,6 @@ impToLua mod =
   exprToLua (CI.Variable qi) = qiToExpr qi
 
   exprToLua (CI.Function arg stats) = L.Function (identToLua arg) $ map statToLua stats
-
-  exprToLua (CI.TagOf cn expr) =
-    L.Binary
-      L.Eq
-      (L.Accessor ctorTagIdent (exprToLua expr))
-      (L.Literal (L.String (properToLua (unQualified cn))))
 
   exprToLua (CI.Binary op x y) =
     L.Binary

@@ -3,7 +3,7 @@ module CoreImp.AST where
 import Prelude
 import CoreFn.Ident (Ident) as CF
 import CoreFn.Literal (Literal(..)) as CF
-import CoreFn.Names (ProperName, Qualified) as CF
+import CoreFn.Names (Qualified) as CF
 import Data.Foldable (intercalate)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
@@ -14,8 +14,6 @@ import PSString (PSString)
 data Expr
   -- | Literal value
   = Literal (CF.Literal Expr)
-  -- | Data constructor (constructor name, field names)  
-  | Constructor CF.ProperName (Array CF.Ident)
   -- | Object accessor
   | Accessor PSString Expr
   -- | Array accessor
@@ -32,8 +30,6 @@ data Expr
   | Binary BinOp Expr Expr
   -- | Unary operation
   | Unary UnOp Expr
-  -- | Constructor identification
-  | TagOf (CF.Qualified CF.ProperName) Expr
   -- | Unit (Prim.undefined)
   | Unit
 
@@ -47,7 +43,6 @@ data Stat
 
 instance showExpr :: Show Expr where
   show (Literal lit) = showCtor "Literal" [ show lit ]
-  show (Constructor cn args) = showCtor "Constructor" [ show cn, show args ]
   show (Accessor k v) = showCtor "Accessor" [ show k, show v ]
   show (Indexer i v) = showCtor "Indexer" [ show i, show v ]
   show (ObjectUpdate obj kvs) = showCtor "ObjectUpdate" [ show obj, show kvs ]
@@ -56,7 +51,6 @@ instance showExpr :: Show Expr where
   show (Function arg stats) = showCtor "Function" [ show arg, show stats ]
   show (Binary op x y) = showCtor "Binary" [ show op, show x, show y ]
   show (Unary op x) = showCtor "Unary" [ show op, show x ]
-  show (TagOf cn x) = showCtor "TagOf" [ show cn, show x ]
   show Unit = "Unit"
 
 instance showStat :: Show Stat where
@@ -121,8 +115,6 @@ everywhere f = go'
   go (Binary op x y) = f (Binary op (go x) (go y))
 
   go (Unary op x) = f (Unary op (go x))
-
-  go (TagOf cn x) = f (TagOf cn (go x))
 
   go other = f other
 

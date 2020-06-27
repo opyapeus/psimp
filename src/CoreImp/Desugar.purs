@@ -9,6 +9,7 @@ import CoreFn.Ident (Ident(..)) as CF
 import CoreFn.Literal (Literal(..)) as CF
 import CoreFn.Meta (Meta(..)) as CF
 import CoreFn.Module (Module(..), ModuleImport(..)) as CF
+import CoreFn.Names (ProperName(..), Qualified(..)) as CF
 import CoreImp.AST (BinOp(..), Expr(..), Stat(..), UnOp(..))
 import CoreImp.Constant (primModules)
 import CoreImp.Misc (traverseLiteral)
@@ -75,7 +76,20 @@ fnToImp (CF.Module m) = do
           body' <- toAST body
           pure $ concat binds' <> return body'
 
-  toAST (CF.Constructor _ _ cn args) = pure $ Constructor cn args
+  toAST (CF.Constructor _ _ cn args) = go args
+    where
+    go :: Array CF.Ident -> m Expr
+    go idents = case uncons idents of
+      Just { head: ident, tail: remain } ->
+        Function ident
+          <<< singleton
+          <<< Return
+          <$> go remain
+      Nothing ->
+        Literal
+          <<< CF.ObjectLiteral
+          <<< append [ Tuple fixedCtorTagName (Literal (CF.StringLiteral (unProper cn))) ]
+          <$> traverse (\arg -> Tuple <$> unIdent arg <@> Variable (CF.Qualified Nothing arg)) args
 
   iife :: Array Stat -> Expr
   iife stats = Apply (Function (CF.Ident unusedVarName) stats) Unit
@@ -124,9 +138,17 @@ fnToImp (CF.Module m) = do
   -- NOTE: Newtype is treated as Abs in CoreFn
   binder val done (CF.ConstructorBinder (CF.Ann { sourceSpan: _, comments: _, type: _, meta: Just CF.IsNewtype }) _ _ [ b ]) = binder val done b
 
-  binder val done (CF.ConstructorBinder _ _ cn bs) = do
+  binder val done (CF.ConstructorBinder _ _ (CF.Qualified _ cn) bs) = do
     stats <- go bs done
-    pure [ If (TagOf cn val) stats ]
+    pure
+      [ If
+          ( Binary
+              Equal
+              (Accessor (PSString fixedCtorTagName) val)
+              (Literal (CF.StringLiteral (unProper cn)))
+          )
+          stats
+      ]
     where
     fieldCount = length bs
 
@@ -181,5 +203,20 @@ fnToImp (CF.Module m) = do
         binder idx done'' b
       _ -> pure done'
 
+-- NOTE: CoreFn specific
 fixedCtorArgName :: String
 fixedCtorArgName = "value"
+
+-- NOTE: this library specific
+fixedCtorTagName :: String
+fixedCtorTagName = "tag"
+
+unProper :: CF.ProperName -> String
+unProper (CF.ProperName s) = s
+
+unIdent :: forall m. MonadThrow Error m => CF.Ident -> m String
+unIdent (CF.Ident s) = pure s
+
+unIdent (CF.GenIdent _ _) = throwError $ error "GenIdent is not supported."
+
+unIdent CF.UnusedIdent = throwError $ error "GenIdent is not supported."
