@@ -8,7 +8,7 @@ import CoreFn.Literal (Literal(..)) as CF
 import CoreFn.Names (ModuleName(..), ProperName(..), Qualified(..)) as CF
 import CoreImp.AST (BinOp(..), Expr(..), Stat(..), UnOp(..)) as CI
 import CoreImp.Module (Module) as CI
-import Data.Array (elem, null)
+import Data.Array (null)
 import Data.Bifunctor (bimap, lmap)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
@@ -49,7 +49,6 @@ impToLua mod =
   qiToExpr :: CF.Qualified CF.Ident -> L.Expr
   qiToExpr (CF.Qualified (Just mn) ident)
     | mn /= mod.moduleName = L.Accessor (identToLua ident) (L.Var (mkModName mn))
-    | mn == mod.moduleName, elem ident mod.moduleForeigns = L.Accessor (identToLua ident) (L.Var foreignIdent)
 
   qiToExpr (CF.Qualified _ ident) = L.Var $ identToLua ident
 
