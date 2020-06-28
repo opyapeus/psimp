@@ -28,6 +28,7 @@ data Expr
   | Function String (Array Stat)
   | Binary BinOp Expr Expr
   | Unary UnOp Expr
+  | Length Expr
   | Nil
 
 data BinOp
@@ -82,6 +83,7 @@ instance showExpr :: Show Expr where
   show (Function arg stats) = showCtor "Function" [ show arg, show stats ]
   show (Binary op x y) = showCtor "Binary" [ show op, show x, show y ]
   show (Unary op x) = showCtor "Unary" [ show op, show x ]
+  show (Length arr) = showCtor "Length" [ show arr ]
   show Nil = "Nil"
 
 instance showLit :: Show Lit where

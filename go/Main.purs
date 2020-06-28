@@ -57,17 +57,6 @@ main = do
           processJson jsonPath
       else do
         processJson jsonPath
-  -- copy helper.go
-  let
-    helperDir = joinWith "/" [ outDir, "_Helper" ]
-
-    helperPath = joinWith "/" [ helperDir, "index.go" ]
-  orMakeDir helperDir
-  isHelper <- S.exists helperPath
-  when (not isHelper) do
-    h <- S.readTextFile UTF8 $ joinWith "/" [ "go_helper", "index.go" ]
-    S.writeTextFile UTF8 helperPath h
-    log $ "copied helper.go"
   info "--- transpiled! ---"
 
 processJson :: FilePath -> Effect Unit

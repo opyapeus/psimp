@@ -2,12 +2,13 @@ module CodeGen.Go where
 
 import Prelude
 import CodeGen.Go.AST as G
-import CodeGen.Go.Common (private, properToGo, psstringToGo, public)
+import CodeGen.Go.Common (identToGo, private, properToGo, psstringToGo, public)
 import CoreFn.Ident (Ident) as CF
 import CoreFn.Literal (Literal(..)) as CF
 import CoreFn.Names (ModuleName(..), Qualified(..)) as CF
 import CoreImp.AST (BinOp(..), Expr(..), Stat(..), UnOp(..)) as CI
 import CoreImp.Module (Module) as CI
+import Data.Array (null)
 import Data.Bifunctor (bimap, lmap)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
@@ -20,8 +21,9 @@ impToGo :: CI.Module -> Array G.Stat
 impToGo mod =
   pkg
     <> imp
+    <> fbinds
     <> [ G.Raw "type _ = Any" ] -- NOTE: to prevent error "imported and not used"
-    <> map statToGo mod.moduleStats
+    <> map statToGoTL mod.moduleStats
     <> exps
   where
   pkg = [ G.Package (mkModName mod.moduleName) ]
@@ -29,10 +31,21 @@ impToGo mod =
   imp = [ G.Import imps ]
     where
     imps =
-      [ Tuple (Just G.Dot) (joinWith "/" [ "..", "_Helper" ]) ]
+      [ himp ]
         <> map
             (\modName -> Tuple Nothing (joinWith "/" [ "..", mkModName modName ]))
             mod.moduleImports
+        <> fimps
+
+    himp = Tuple (Just G.Dot) (joinWith "/" [ "..", "..", "go_helper" ])
+
+    fimps
+      | null mod.moduleForeigns = []
+      | otherwise = [ Tuple Nothing (joinWith "/" [ ".", foreignIdent ]) ]
+
+  fbinds =
+    map (\f -> G.VarAssign (private f) (G.Reference foreignIdent (G.Var (public f))))
+      mod.moduleForeigns
 
   exps =
     map (\e -> G.VarAssign (public e) (G.Var (private e)))
@@ -41,17 +54,24 @@ impToGo mod =
   qiToExpr :: CF.Qualified CF.Ident -> G.Expr
   qiToExpr (CF.Qualified (Just mn) ident)
     | mn /= mod.moduleName = G.Reference (mkModName mn) (G.Var (public ident))
+    | otherwise = G.Var (private ident)
 
-  qiToExpr (CF.Qualified _ ident) = G.Var (private ident)
+  qiToExpr (CF.Qualified Nothing ident) = G.Var (identToGo ident)
+
+  -- NOTE: this is for separating private and public var names.
+  statToGoTL :: CI.Stat -> G.Stat
+  statToGoTL (CI.Assign ident expr) = G.VarAssign (private ident) (exprToGo expr)
+
+  statToGoTL _ = G.Throw "Not assign statement in top level."
 
   statToGo :: CI.Stat -> G.Stat
-  statToGo (CI.Assign ident expr) = G.VarAssign (private ident) (exprToGo expr)
+  statToGo (CI.Assign ident expr) = G.VarAssign (identToGo ident) (exprToGo expr)
 
   statToGo (CI.UpdateAssign new expr) = G.Assign (exprToGo new) (exprToGo expr)
 
-  statToGo (CI.ObjectCopy ident expr) = G.VarAssign (private ident) (G.Clone (exprToGo expr))
+  statToGo (CI.ObjectCopy ident expr) = G.VarAssign (identToGo ident) (G.Clone (exprToGo expr))
 
-  statToGo (CI.If expr stats) = G.If (exprToGo expr) $ map statToGo stats
+  statToGo (CI.If expr stats) = G.If (exprToGo expr) (map statToGo stats)
 
   statToGo (CI.Return expr) = G.Return (exprToGo expr)
 
@@ -68,11 +88,14 @@ impToGo mod =
 
   exprToGo (CI.Variable qi) = qiToExpr qi
 
-  exprToGo (CI.Function arg stats) = G.Function (private arg) $ map statToGo stats
+  exprToGo (CI.Function arg stats) = G.Function (identToGo arg) (map statToGo stats)
 
   exprToGo (CI.Binary op x y) = G.Binary (binary op) (exprToGo x) (exprToGo y)
 
-  exprToGo (CI.Unary op x) = G.Unary (unary op) (exprToGo x)
+  exprToGo (CI.Unary op x) = case op of
+    CI.Negative -> G.Unary G.Neg (exprToGo x)
+    CI.Not -> G.Unary G.Not (exprToGo x)
+    CI.Length -> G.Length (exprToGo x)
 
   exprToGo CI.Unit = G.Nil
 
@@ -103,13 +126,6 @@ impToGo mod =
 
   binary CI.Or = G.Or
 
-  unary :: CI.UnOp -> G.UnOp
-  unary CI.Negative = G.Neg
-
-  unary CI.Length = G.Len
-
-  unary CI.Not = G.Not
-
   literal :: CF.Literal CI.Expr -> G.Lit
   literal (CF.NumericLiteral (Left i)) = G.Int i
 
@@ -132,10 +148,7 @@ ctorMetaIdent :: String
 ctorMetaIdent = "tag"
 
 foreignIdent :: String
-foreignIdent = "foreign"
+foreignIdent = "Foreign"
 
 indexIdent :: String
 indexIdent = "index"
-
-unQualified :: forall a. CF.Qualified a -> a
-unQualified (CF.Qualified _ x) = x

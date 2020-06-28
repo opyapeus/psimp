@@ -11,6 +11,7 @@ word ::
   { function :: DOC
   , if :: DOC
   , import :: DOC
+  , len :: DOC
   , package :: DOC
   , panic :: DOC
   , return :: DOC
@@ -24,6 +25,7 @@ word =
   , import: text "import"
   , package: text "package"
   , panic: text "panic"
+  , len: text "len"
   }
 
 bracket ::
@@ -103,6 +105,7 @@ prefix Dot = dot
 expr :: Expr -> DOC
 expr (Var v) = text v
 
+-- REVIEW: clean way to copy object
 expr (Clone x) =
   text
     """(func()
@@ -145,8 +148,7 @@ expr (App f x) =
     [ helper.apply
     , bracket.roundOpen
     , expr f
-    , comma
-    , expr x
+    , joinSpace [ comma, expr x ]
     , bracket.roundClose
     ]
 
@@ -154,11 +156,7 @@ expr (Function arg stats) =
   word.function
     <> bracket.roundOpen
     <> joinSpace [ text arg, helper.any ]
-    <> bracket.roundClose
-    <> text " "
-    <> helper.any
-    <> text " "
-    <> bracket.curlyOpen
+    <> joinSpace [ bracket.roundClose, helper.any, bracket.curlyOpen ]
     <> indent (line <> (intercalate line (map stat stats)))
     <> line
     <> bracket.curlyClose
@@ -166,6 +164,8 @@ expr (Function arg stats) =
 expr (Binary op a b) = joinSpace [ expr a, bin op, expr b ]
 
 expr (Unary op x) = joinSpace [ un op, expr x ]
+
+expr (Length arr) = joinEmpty [ word.len, bracket.roundOpen, expr arr, bracket.roundClose ]
 
 expr Nil = text "nil"
 
@@ -225,7 +225,7 @@ lit (Object kvs) =
     <> indent
         ( ( intercalate comma
               $ map
-                  (\(Tuple k v) -> line <> joinSpace [ text (show k), colon, expr v ])
+                  (\(Tuple k v) -> line <> joinSpace [ joinEmpty [ text (show k), colon ], expr v ])
                   kvs
           )
             <> comma
