@@ -3,6 +3,7 @@
 /.pulp-cache/
 /output/
 /outlua/
+/outjs/
 /generated-docs/
 /.psc-package/
 /.psc*

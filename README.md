@@ -19,6 +19,8 @@ generate `corefn.json` of example modules
 spago -x example.dhall build --purs-args "-g corefn"
 ```
 
+### Lua
+
 generate lua files to `./outlua`
 
 ```
@@ -37,4 +39,18 @@ run
 
 ```
 LUA_PATH=outlua/?.lua lua main.lua
+```
+
+### JavaScript
+
+generate lua files to `./outjs`
+
+```
+spago -x spago_js.dhall run
+```
+
+run (ffi files copied from `./output`)
+
+```
+node main.js
 ```
