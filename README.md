@@ -10,6 +10,7 @@ A purescript transpiler for lua language.
 - purescript
 - node
 - lua
+- dart
 
 ## Code Generation
 
@@ -39,6 +40,28 @@ run
 
 ```
 LUA_PATH=outlua/?.lua lua main.lua
+```
+
+### Dart
+
+generate lua files to `./outdart`
+
+```
+spago -x spago_dart.dhall run
+```
+
+copy ffi files (manually for now) from [psdart-ffi](https://github.com/opyapeus/psdart-ffi)
+
+```
+cp -r [somedir]/psdart-ffi/effect/* ./outdart
+cp -r [somedir]/psdart-ffi/console/* ./outdart
+cp -r [somedir]/psdart-ffi/prelude/* ./outdart
+```
+
+run
+
+```
+dart main.dart
 ```
 
 ### JavaScript
