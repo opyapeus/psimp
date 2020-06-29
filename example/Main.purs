@@ -3,7 +3,7 @@ module Main where
 import Prelude
 import Effect (Effect)
 import Effect.Console (log)
-import Sample (eo)
+import Sample (eo, frac)
 
 main :: Effect Unit
 main = do
@@ -13,3 +13,4 @@ main = do
     even = eo 2
   log odd
   log even
+  log <<< show $ frac 7

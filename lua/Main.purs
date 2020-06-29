@@ -2,6 +2,7 @@ module Main where
 
 import Prelude
 import CodeGen.Lua (impToLua, mkModPath, modPathJoiner)
+import CodeGen.Lua.Optimizer (optimize)
 import CodeGen.Lua.Printer (print)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Except (runExcept)
@@ -77,9 +78,11 @@ transpile mod = do
 
         lua = impToLua optMod
 
+        optLua = map optimize lua
+
         modDir = joinWith "/" [ outDir, mkModPath impMod.moduleName ]
       orMakeDir modDir
-      S.writeTextFile UTF8 (joinWith "/" [ modDir, "index.lua" ]) (print lua)
+      S.writeTextFile UTF8 (joinWith "/" [ modDir, "index.lua" ]) (print optLua)
       log $ mkModPath impMod.moduleName
 
 orMakeDir :: FilePath -> Effect Unit
