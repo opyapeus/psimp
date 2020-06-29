@@ -44,7 +44,7 @@ impToGo mod =
       | otherwise = [ Tuple Nothing (joinWith "/" [ ".", foreignIdent ]) ]
 
   fbinds =
-    map (\f -> G.VarAssign (private f) (G.Reference foreignIdent (G.Var (public f))))
+    map (\f -> G.VarAssign (private f) (G.Referrer foreignIdent (public f)))
       mod.moduleForeigns
 
   exps =
@@ -53,7 +53,7 @@ impToGo mod =
 
   qiToExpr :: CF.Qualified CF.Ident -> G.Expr
   qiToExpr (CF.Qualified (Just mn) ident)
-    | mn /= mod.moduleName = G.Reference (mkModName mn) (G.Var (public ident))
+    | mn /= mod.moduleName = G.Referrer (mkModName mn) (public ident)
     | otherwise = G.Var (private ident)
 
   qiToExpr (CF.Qualified Nothing ident) = G.Var (identToGo ident)

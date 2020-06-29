@@ -186,9 +186,7 @@ fnToImp (CF.Module m) = do
 
   literalBinder val done (CF.StringLiteral s) = pure [ If (Binary Equal val (Literal (CF.StringLiteral s))) done ]
 
-  literalBinder val done (CF.BooleanLiteral true) = pure [ If val done ]
-
-  literalBinder val done (CF.BooleanLiteral false) = pure [ If (Unary Not val) done ]
+  literalBinder val done (CF.BooleanLiteral b) = pure [ If (Binary Equal val (Literal (CF.BooleanLiteral b))) done ]
 
   literalBinder val done (CF.ObjectLiteral bs) = go done bs
     where

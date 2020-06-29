@@ -2,13 +2,14 @@ module CodeGen.Go.Printer where
 
 import Prelude hiding (Ordering(..))
 import CodeGen.Go.AST (BinOp(..), Expr(..), Lit(..), Prefix(..), Stat(..), UnOp(..))
+import Data.Array (null)
 import Data.Foldable (intercalate)
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
-import Prettier.Printer (DOC, line, nest, pretty, text)
+import Prettier.Printer (DOC, line, nest, nil, pretty, text)
 
 word ::
-  { function :: DOC
+  { func :: DOC
   , if :: DOC
   , import :: DOC
   , len :: DOC
@@ -19,7 +20,7 @@ word ::
   }
 word =
   { var: text "var"
-  , function: text "func"
+  , func: text "func"
   , return: text "return"
   , if: text "if"
   , import: text "import"
@@ -48,11 +49,13 @@ bracket =
 helper ::
   { any :: DOC
   , apply :: DOC
+  , array :: DOC
   , dict :: DOC
   }
 helper =
   { apply: text "Apply"
   , any: text "Any"
+  , array: text "[]Any"
   , dict: text "Dict"
   }
 
@@ -82,9 +85,7 @@ stat (If cond stats) =
 stat (Return x) = joinSpace [ word.return, expr x ]
 
 stat (Import paths) =
-  word.import
-    <> text " "
-    <> bracket.roundOpen
+  joinSpace [ word.import, bracket.roundOpen ]
     <> indent (line <> (intercalate line (map prt paths)))
     <> line
     <> bracket.roundClose
@@ -96,6 +97,17 @@ stat (Import paths) =
 stat (Package name) = joinSpace [ word.package, text name ]
 
 stat (Throw s) = joinEmpty [ word.panic, bracket.roundOpen, text (show s), bracket.roundClose ]
+
+stat (FunctionDecl name arg stats) =
+  joinSpace
+    [ word.func
+    , joinEmpty [ text name, bracket.roundOpen ]
+    ]
+    <> joinSpace [ text arg, helper.any ]
+    <> joinSpace [ bracket.roundClose, helper.any, bracket.curlyOpen ]
+    <> indent (line <> (intercalate line (map stat stats)))
+    <> line
+    <> bracket.curlyClose
 
 stat (Raw s) = text s
 
@@ -121,7 +133,7 @@ expr (Clone x) =
 
 expr (Literal l) = lit l
 
-expr (Reference n x) = joinEmpty [ text n, dot, expr x ]
+expr (Referrer s x) = joinEmpty [ text s, dot, text x ]
 
 expr (Accessor a x) =
   joinEmpty
@@ -153,7 +165,7 @@ expr (App f x) =
     ]
 
 expr (Function arg stats) =
-  word.function
+  word.func
     <> bracket.roundOpen
     <> joinSpace [ text arg, helper.any ]
     <> joinSpace [ bracket.roundClose, helper.any, bracket.curlyOpen ]
@@ -165,7 +177,17 @@ expr (Binary op a b) = joinSpace [ expr a, bin op, expr b ]
 
 expr (Unary op x) = joinSpace [ un op, expr x ]
 
-expr (Length arr) = joinEmpty [ word.len, bracket.roundOpen, expr arr, bracket.roundClose ]
+expr (Length arr) =
+  joinEmpty
+    [ word.len
+    , bracket.roundOpen
+    , expr arr
+    , dot
+    , bracket.roundOpen
+    , helper.array
+    , bracket.roundClose
+    , bracket.roundClose
+    ]
 
 expr Nil = text "nil"
 
@@ -199,8 +221,6 @@ bin Or = text "||"
 un :: UnOp -> DOC
 un Neg = text "-"
 
-un Len = text "#"
-
 un Not = text "!"
 
 lit :: Lit -> DOC
@@ -213,8 +233,7 @@ lit (Boolean b) = text $ show b
 lit (String s) = text $ show s
 
 lit (Array xs) =
-  text "[]"
-    <> helper.any
+  helper.array
     <> bracket.curlyOpen
     <> intercalate comma (map expr xs)
     <> bracket.curlyClose
@@ -228,7 +247,7 @@ lit (Object kvs) =
                   (\(Tuple k v) -> line <> joinSpace [ joinEmpty [ text (show k), colon ], expr v ])
                   kvs
           )
-            <> comma
+            <> if null kvs then nil else comma
         )
     <> line
     <> bracket.curlyClose

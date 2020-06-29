@@ -15,13 +15,14 @@ data Stat
   | Import (Array (Tuple (Maybe Prefix) String))
   | Package String
   | Throw String
+  | FunctionDecl String String (Array Stat)
   | Raw String
 
 data Expr
   = Var String
   | Clone Expr
   | Literal Lit
-  | Reference String Expr
+  | Referrer String String
   | Accessor String Expr
   | Indexer Int Expr
   | App Expr Expr
@@ -48,7 +49,6 @@ data BinOp
 
 data UnOp
   = Neg
-  | Len
   | Not
 
 data Lit
@@ -70,13 +70,14 @@ instance showStat :: Show Stat where
   show (Import paths) = showCtor "Import" [ show paths ]
   show (Package name) = showCtor "Package" [ show name ]
   show (Throw s) = showCtor "Throw" [ show s ]
+  show (FunctionDecl name arg stats) = showCtor "FunctionDecl" [ show name, show arg, show stats ]
   show (Raw s) = showCtor "Raw" [ show s ]
 
 instance showExpr :: Show Expr where
   show (Var x) = showCtor "Var" [ show x ]
   show (Clone x) = showCtor "Clone" [ show x ]
   show (Literal lit) = showCtor "Literal" [ show lit ]
-  show (Reference a x) = showCtor "Reference" [ show a, show x ]
+  show (Referrer a x) = showCtor "Referrer" [ show a, show x ]
   show (Accessor a x) = showCtor "Accessor" [ show a, show x ]
   show (Indexer i x) = showCtor "Indexer" [ show i, show x ]
   show (App f x) = showCtor "App" [ show f, show x ]
@@ -117,32 +118,40 @@ instance showUnOp :: Show UnOp where
 instance showPrefix :: Show Prefix where
   show = genericShow
 
-everywhere :: (Expr -> Expr) -> Stat -> Stat
-everywhere f = go'
+everywhere :: (Expr -> Expr) -> (Stat -> Stat) -> Stat -> Stat
+everywhere f g = go'
   where
   go :: Expr -> Expr
-  go (Literal lit) = f (Literal (go'' lit))
+  go (Literal lit) = f $ Literal (go'' lit)
 
-  go (Accessor a x) = f (Accessor a (go x))
+  go (Accessor a x) = f $ Accessor a (go x)
 
-  go (App f' x) = f (App (go f') (go x))
+  go (Indexer i x) = f $ Indexer i (go x)
 
-  go (Function arg stats) = f (Function arg (map go' stats))
+  go (App f' x) = f $ App (go f') (go x)
 
-  go (Binary op x y) = f (Binary op (go x) (go y))
+  go (Function arg stats) = f $ Function arg (map go' stats)
 
-  go (Unary op x) = f (Unary op (go x))
+  go (Binary op x y) = f $ Binary op (go x) (go y)
+
+  go (Unary op x) = f $ Unary op (go x)
+
+  go (Length x) = f $ Length (go x)
 
   go other = f other
 
   go' :: Stat -> Stat
-  go' (Assign a b) = (Assign (go a) (go b))
+  go' (VarAssign a b) = g $ VarAssign a (go b)
 
-  go' (If cond stats) = (If (go cond) (map go' stats))
+  go' (Assign a b) = g $ Assign (go a) (go b)
 
-  go' (Return x) = (Return (go x))
+  go' (If cond stats) = g $ If (go cond) (map go' stats)
 
-  go' other = other
+  go' (Return x) = g $ Return (go x)
+
+  go' (FunctionDecl name arg stats) = g $ FunctionDecl name arg (map go' stats)
+
+  go' other = g other
 
   go'' :: Lit -> Lit
   go'' (Array xs) = (Array (map go xs))

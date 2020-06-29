@@ -2,6 +2,7 @@ module Main where
 
 import Prelude
 import CodeGen.Go (impToGo, mkModName)
+import CodeGen.Go.Optimizer (optimize)
 import CodeGen.Go.Printer (print)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Except (runExcept)
@@ -77,9 +78,11 @@ transpile mod = do
 
         go = impToGo optMod
 
+        optGo = map optimize go
+
         modDir = joinWith "/" [ outDir, mkModName impMod.moduleName ]
       orMakeDir modDir
-      S.writeTextFile UTF8 (joinWith "/" [ modDir, "index.go" ]) (print go)
+      S.writeTextFile UTF8 (joinWith "/" [ modDir, "index.go" ]) (print optGo)
       log $ mkModName impMod.moduleName
 
 orMakeDir :: FilePath -> Effect Unit
