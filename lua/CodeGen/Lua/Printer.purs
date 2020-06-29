@@ -70,6 +70,15 @@ stat (Return x) = joinSpace [ word.return, expr x ]
 
 stat (Throw s) = joinEmpty [ word.error, bracket.roundOpen, text (show s), bracket.roundClose ]
 
+stat (FunctionDecl name arg stats) =
+  joinSpace
+    [ word.function
+    , joinEmpty [ text name, bracket.roundOpen, text arg, bracket.roundClose ]
+    ]
+    <> indent (line <> (intercalate line (map stat stats)))
+    <> line
+    <> word.end
+
 expr :: Expr -> DOC
 expr (Var v) = text v
 

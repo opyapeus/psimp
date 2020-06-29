@@ -12,6 +12,7 @@ data Stat
   | If Expr (Array Stat)
   | Return Expr
   | Throw String
+  | FunctionDecl String String (Array Stat)
 
 data Expr
   = Var String
@@ -60,6 +61,7 @@ instance showStat :: Show Stat where
   show (If cond stats) = showCtor "If" [ show cond, show stats ]
   show (Return x) = showCtor "Return" [ show x ]
   show (Throw s) = showCtor "Throw" [ show s ]
+  show (FunctionDecl name arg stats) = showCtor "FunctionDecl" [ show name, show arg, show stats ]
 
 instance showExpr :: Show Expr where
   show (Var v) = showCtor "Var" [ show v ]
@@ -99,3 +101,42 @@ instance showBinOp :: Show BinOp where
 
 instance showUnOp :: Show UnOp where
   show = genericShow
+
+everywhere :: (Expr -> Expr) -> (Stat -> Stat) -> Stat -> Stat
+everywhere f g = go'
+  where
+  go (Clone e) = f $ Clone (go e)
+
+  go (Literal lit) = f $ Literal (go'' lit)
+
+  go (Accessor s e) = f $ Accessor s (go e)
+
+  go (Indexer i e) = f $ Indexer i (go e)
+
+  go (App el er) = f $ App (go el) (go er)
+
+  go (Function s stats) = f $ Function s (map go' stats)
+
+  go (Binary op el er) = f $ Binary op (go el) (go er)
+
+  go (Unary op e) = f $ Unary op (go e)
+
+  go other = f other
+
+  go' (LocalAssign s var) = g $ LocalAssign s (go var)
+
+  go' (Assign new var) = g $ Assign (go new) (go var)
+
+  go' (If cond stats) = g $ If (go cond) (map go' stats)
+
+  go' (Return var) = g $ Return (go var)
+
+  go' (FunctionDecl name arg stats) = g $ FunctionDecl name arg (map go' stats)
+
+  go' other = g other
+
+  go'' (Array es) = Array (map go es)
+
+  go'' (Object kvs) = Object (map (map go) kvs)
+
+  go'' other = other

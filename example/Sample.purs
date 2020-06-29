@@ -8,3 +8,10 @@ eo x =
     "even"
   else
     "odd"
+
+fact :: Int -> Int
+fact 0 = 1
+
+fact n
+  | n < 0 = fact (-n)
+  | otherwise = n * fact (n - 1)
