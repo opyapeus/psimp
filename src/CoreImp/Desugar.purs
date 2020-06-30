@@ -28,12 +28,6 @@ fnToImp ::
   CF.Module CF.Ann -> m CI.Module
 fnToImp (CF.Module m) = do
   stats <- concat <$> traverse decl m.moduleDecls
-  let
-    -- NOTE: remove self module and Prim modules
-    imports =
-      difference
-        (map (\(CF.ModuleImport r) -> r.moduleName) m.moduleImports)
-        (cons m.moduleName primModules)
   pure
     $ { moduleName: m.moduleName
       , moduleImports: imports
@@ -42,6 +36,12 @@ fnToImp (CF.Module m) = do
       , moduleStats: stats
       }
   where
+  -- NOTE: remove self module and Prim modules
+  imports =
+    difference
+      (map (\(CF.ModuleImport r) -> r.moduleName) m.moduleImports)
+      (cons m.moduleName primModules)
+
   decl :: CF.Bind CF.Ann -> m (Array Stat)
   decl (CF.NonRec _ ident expr) = singleton <$> assign ident expr
 
@@ -54,7 +54,18 @@ fnToImp (CF.Module m) = do
   assign ident expr = Assign ident <$> toAST expr
 
   toAST :: CF.Expr CF.Ann -> m Expr
-  toAST (CF.Literal _ lit) = Literal <$> traverseLiteral toAST lit
+  toAST (CF.Literal _ l) = Literal <$> traverseLiteral toAST l
+
+  toAST (CF.Constructor _ _ cn args) = go args
+    where
+    go :: Array CF.Ident -> m Expr
+    go idents = case uncons idents of
+      Just { head: ident, tail: remain } -> Function ident <<< return <$> go remain
+      Nothing ->
+        Literal
+          <<< CF.ObjectLiteral
+          <<< append [ Tuple fixedCtorTagName (Literal (CF.StringLiteral (unProper cn))) ] -- NOTE: add tag field to object to identify constructor 
+          <$> traverse (\arg -> Tuple <$> unIdent arg <@> Variable (CF.Qualified Nothing arg)) args
 
   toAST (CF.Accessor _ k v) = Accessor (PSString k) <$> toAST v
 
@@ -77,7 +88,7 @@ fnToImp (CF.Module m) = do
 
     flatten acc v = singleton <$> Tuple acc <$> toAST v
 
-  toAST (CF.Abs _ arg body) = Function arg <$> map return (toAST body)
+  toAST (CF.Abs _ arg x) = Function arg <$> return <$> toAST x
 
   toAST (CF.App _ f x) = Apply <$> toAST f <*> toAST x
 
@@ -85,27 +96,12 @@ fnToImp (CF.Module m) = do
 
   toAST (CF.Case _ args alts) = iife <$> cases args alts
 
-  toAST (CF.Let _ binds body) =
+  toAST (CF.Let _ binds x) =
     iife
       <$> do
-          binds' <- traverse decl binds
-          body' <- toAST body
-          pure $ concat binds' <> return body'
-
-  toAST (CF.Constructor _ _ cn args) = go args
-    where
-    go :: Array CF.Ident -> m Expr
-    go idents = case uncons idents of
-      Just { head: ident, tail: remain } ->
-        Function ident
-          <<< singleton
-          <<< Return
-          <$> go remain
-      Nothing ->
-        Literal
-          <<< CF.ObjectLiteral
-          <<< append [ Tuple fixedCtorTagName (Literal (CF.StringLiteral (unProper cn))) ]
-          <$> traverse (\arg -> Tuple <$> unIdent arg <@> Variable (CF.Qualified Nothing arg)) args
+          statss <- traverse decl binds
+          res <- toAST x
+          pure $ concat statss <> return res
 
   iife :: Array Stat -> Expr
   iife stats = Apply (Function (CF.Ident unusedVarName) stats) Unit
@@ -140,7 +136,7 @@ fnToImp (CF.Module m) = do
     go :: Array Expr -> Array Stat -> Array (CF.Binder CF.Ann) -> m (Array Stat)
     go _ done [] = pure done
 
-    go vals' done binders = case uncons vals', uncons binders of
+    go vals done binders = case uncons vals, uncons binders of
       Just { head: v, tail: vs }, Just { head: b, tail: bs } -> do
         done' <- go vs done bs
         binder v done' b
@@ -151,22 +147,21 @@ fnToImp (CF.Module m) = do
 
   binder val done (CF.LiteralBinder _ l) = literalBinder val done l
 
-  binder val done (CF.VarBinder _ ident) = pure $ [ Assign ident val ] <> done
+  binder val done (CF.VarBinder _ ident) = pure $ cons (Assign ident val) done
 
   -- NOTE: Newtype is treated as Abs in CoreFn
   binder val done (CF.ConstructorBinder (CF.Ann { sourceSpan: _, comments: _, type: _, meta: Just CF.IsNewtype }) _ _ [ b ]) = binder val done b
 
   binder val done (CF.ConstructorBinder _ _ (CF.Qualified _ cn) bs) = do
     stats <- go bs done
-    pure
-      [ If
+    pure <<< singleton
+      $ If
           ( Binary
               Equal
               (Accessor (PSString fixedCtorTagName) val)
               (Literal (CF.StringLiteral (unProper cn)))
           )
           stats
-      ]
     where
     fieldCount = length bs
 
@@ -174,7 +169,7 @@ fnToImp (CF.Module m) = do
     go binds done' = case uncons binds of
       Just { head: b, tail: bs' } -> do
         let
-          -- NOTE: serial numbered value names (`value0`, `value1`, ...) according to corefn
+          -- NOTE: serial numbered value names (`value0`, `value1`, ...) according to CoreFn
           valueNumber = fieldCount - length bs' - 1
 
           acc = Accessor (PSString (fixedCtorArgName <> show valueNumber)) val
@@ -184,41 +179,48 @@ fnToImp (CF.Module m) = do
 
   binder val done (CF.NamedBinder _ ident b) = do
     stats <- binder val done b
-    pure $ [ Assign ident val ] <> stats
+    pure $ cons (Assign ident val) stats
 
   literalBinder :: Expr -> Array Stat -> CF.Literal (CF.Binder CF.Ann) -> m (Array Stat)
-  literalBinder val done (CF.NumericLiteral n) = pure [ If (Binary Equal val (Literal (CF.NumericLiteral n))) done ]
+  literalBinder val done (CF.NumericLiteral n) = pure <<< singleton $ If (Binary Equal val (Literal (CF.NumericLiteral n))) done
 
-  literalBinder val done (CF.CharLiteral c) = pure [ If (Binary Equal val (Literal (CF.CharLiteral c))) done ]
+  literalBinder val done (CF.CharLiteral c) = pure <<< singleton $ If (Binary Equal val (Literal (CF.CharLiteral c))) done
 
-  literalBinder val done (CF.StringLiteral s) = pure [ If (Binary Equal val (Literal (CF.StringLiteral s))) done ]
+  literalBinder val done (CF.StringLiteral s) = pure <<< singleton $ If (Binary Equal val (Literal (CF.StringLiteral s))) done
 
-  literalBinder val done (CF.BooleanLiteral true) = pure [ If val done ]
+  literalBinder val done (CF.BooleanLiteral true) = pure <<< singleton $ If val done
 
-  literalBinder val done (CF.BooleanLiteral false) = pure [ If (Unary Not val) done ]
+  literalBinder val done (CF.BooleanLiteral false) = pure <<< singleton $ If (Unary Not val) done
 
   literalBinder val done (CF.ObjectLiteral bs) = go done bs
     where
     go :: Array Stat -> Array (Tuple String (CF.Binder CF.Ann)) -> m (Array Stat)
-    go done' kvs = case uncons kvs of
-      Just { head: Tuple prop b, tail: bs' } -> do
-        let
-          acc = Accessor (PSString prop) val
-        done'' <- go done' bs'
+    go done' pbs = case uncons pbs of
+      Just { head: Tuple prop b, tail: pbs' } -> do
+        done'' <- go done' pbs'
         binder acc done'' b
+        where
+        acc = Accessor (PSString prop) val
       _ -> pure done'
 
   literalBinder val done (CF.ArrayLiteral bs) = do
     stats <- go done 0 bs
-    pure [ If (Binary Equal (Unary Length val) (Literal (CF.NumericLiteral (Left (length bs))))) stats ]
+    pure <<< singleton
+      $ If
+          ( Binary
+              Equal
+              (Unary Length val)
+              (Literal (CF.NumericLiteral (Left (length bs))))
+          )
+          stats
     where
     go :: Array Stat -> Int -> Array (CF.Binder CF.Ann) -> m (Array Stat)
     go done' index binds = case uncons binds of
       Just { head: b, tail: bs' } -> do
-        let
-          idx = Indexer index val
         done'' <- go done' (index + 1) bs'
         binder idx done'' b
+        where
+        idx = Indexer index val
       _ -> pure done'
 
 -- NOTE: CoreFn specific
@@ -237,4 +239,4 @@ unIdent (CF.Ident s) = pure s
 
 unIdent (CF.GenIdent _ _) = throwError $ error "GenIdent is not supported."
 
-unIdent CF.UnusedIdent = throwError $ error "GenIdent is not supported."
+unIdent CF.UnusedIdent = throwError $ error "UnusedIdent is not supported."

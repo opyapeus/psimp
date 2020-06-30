@@ -3,7 +3,7 @@ module CoreImp.Module where
 import Prelude
 import CoreFn.Ident (Ident) as CF
 import CoreFn.Names (ModuleName) as CF
-import CoreImp.AST as CI
+import CoreImp.AST (Stat)
 import CoreImp.Optimizer (optimize)
 
 type Module
@@ -11,7 +11,7 @@ type Module
     , moduleImports :: Array CF.ModuleName
     , moduleExports :: Array CF.Ident
     , moduleForeigns :: Array CF.Ident
-    , moduleStats :: Array CI.Stat
+    , moduleStats :: Array Stat
     }
 
 optimizeModule :: Module -> Module

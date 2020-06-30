@@ -9,10 +9,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import PSString (PSString)
 
--- Imperative core AST for languages
--- - no need to declare type explicitly
--- - support currying
--- - have garbage collection
+-- Imperative Core AST
 data Expr
   -- | Literal value
   = Literal (CF.Literal Expr)
@@ -24,21 +21,21 @@ data Expr
   | Apply Expr Expr
   -- | Variable
   | Variable (CF.Qualified CF.Ident)
-  -- | Anonimous function (argument name, statements)
+  -- | Anonimous function (single argument, statements)
   | Function CF.Ident (Array Stat)
   -- | Binary operation
   | Binary BinOp Expr Expr
   -- | Unary operation
   | Unary UnOp Expr
-  -- | Unit (Prim.undefined)
+  -- | Unit
   | Unit
 
 data Stat
   -- | Assignment
   = Assign CF.Ident Expr
-  -- | Update assignment
+  -- | Overwrite assignment
   | UpdateAssign Expr Expr
-  -- | Create ocject clone
+  -- | Create object clone
   | ObjectCopy CF.Ident Expr
   -- | Conditional statement
   | If Expr (Array Stat)
@@ -48,7 +45,7 @@ data Stat
   | Throw String
 
 instance showExpr :: Show Expr where
-  show (Literal lit) = showCtor "Literal" [ show lit ]
+  show (Literal l) = showCtor "Literal" [ show l ]
   show (Accessor k v) = showCtor "Accessor" [ show k, show v ]
   show (Indexer i v) = showCtor "Indexer" [ show i, show v ]
   show (Apply f x) = showCtor "Apply" [ show f, show x ]
@@ -60,7 +57,7 @@ instance showExpr :: Show Expr where
 
 instance showStat :: Show Stat where
   show (Assign ident val) = showCtor "Assign" [ show ident, show val ]
-  show (UpdateAssign obj new) = showCtor "UpdateAssign" [ show obj, show new ]
+  show (UpdateAssign obj val) = showCtor "UpdateAssign" [ show obj, show val ]
   show (ObjectCopy ident obj) = showCtor "ObjectCopy" [ show ident, show obj ]
   show (If cond stats) = showCtor "If" [ show cond, show stats ]
   show (Return val) = showCtor "Return" [ show val ]
@@ -105,41 +102,41 @@ instance showUnOp :: Show UnOp where
   show = genericShow
 
 everywhere :: (Expr -> Expr) -> (Stat -> Stat) -> Stat -> Stat
-everywhere f g = go'
+everywhere fE fS = goS
   where
-  go :: Expr -> Expr
-  go (Literal lit) = f $ Literal (go'' lit)
+  goE :: Expr -> Expr
+  goE (Literal l) = fE $ Literal (goL l)
 
-  go (Accessor a x) = f $ Accessor a (go x)
+  goE (Accessor a x) = fE $ Accessor a (goE x)
 
-  go (Indexer i x) = f $ Indexer i (go x)
+  goE (Indexer i x) = fE $ Indexer i (goE x)
 
-  go (Apply f' x) = f $ Apply (go f') (go x)
+  goE (Apply f' x) = fE $ Apply (goE f') (goE x)
 
-  go (Function arg stats) = f $ Function arg (map go' stats)
+  goE (Function arg stats) = fE $ Function arg (map goS stats)
 
-  go (Binary op x y) = f $ Binary op (go x) (go y)
+  goE (Binary op x y) = fE $ Binary op (goE x) (goE y)
 
-  go (Unary op x) = f $ Unary op (go x)
+  goE (Unary op x) = fE $ Unary op (goE x)
 
-  go other = f other
+  goE other = fE other
 
-  go' :: Stat -> Stat
-  go' (Assign ident var) = g $ Assign ident (go var)
+  goS :: Stat -> Stat
+  goS (Assign ident var) = fS $ Assign ident (goE var)
 
-  go' (UpdateAssign obj new) = g $ UpdateAssign (go obj) (go new)
+  goS (UpdateAssign obj new) = fS $ UpdateAssign (goE obj) (goE new)
 
-  go' (ObjectCopy ident var) = g $ ObjectCopy ident (go var)
+  goS (ObjectCopy ident var) = fS $ ObjectCopy ident (goE var)
 
-  go' (If cond stats) = g $ If (go cond) (map go' stats)
+  goS (If cond stats) = fS $ If (goE cond) (map goS stats)
 
-  go' (Return x) = g $ Return (go x)
+  goS (Return x) = fS $ Return (goE x)
 
-  go' other = g other
+  goS other = fS other
 
-  go'' :: CF.Literal Expr -> CF.Literal Expr
-  go'' (CF.ArrayLiteral xs) = CF.ArrayLiteral (map go xs)
+  goL :: CF.Literal Expr -> CF.Literal Expr
+  goL (CF.ArrayLiteral xs) = CF.ArrayLiteral (map goE xs)
 
-  go'' (CF.ObjectLiteral kvs) = CF.ObjectLiteral (map (map go) kvs)
+  goL (CF.ObjectLiteral kvs) = CF.ObjectLiteral (map (map goE) kvs)
 
-  go'' other = other
+  goL other = other

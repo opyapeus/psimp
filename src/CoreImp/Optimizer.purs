@@ -17,6 +17,7 @@ optimize = enhance <<< necessary
 
   enhance = inlineCommonOperators
 
+-- NOTE: this is for removing pattern match exception.
 removeCodeAfterReturnStatements :: Stat -> Stat
 removeCodeAfterReturnStatements = everywhere convertExpr convertStat
   where
