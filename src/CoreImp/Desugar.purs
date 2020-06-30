@@ -58,17 +58,24 @@ fnToImp (CF.Module m) = do
 
   toAST (CF.Accessor _ k v) = Accessor (PSString k) <$> toAST v
 
-  toAST (CF.ObjectUpdate _ obj kvs) =
-    iife
-      <$> do
-          obj' <- toAST obj
-          kvs' <- traverse (traverse toAST) kvs
-          pure
-            $ [ ObjectCopy resultIdent obj' ]
-            <> map (\(Tuple k v) -> UpdateAssign (Accessor (PSString k) (Variable (CF.Qualified Nothing resultIdent))) v) kvs'
-            <> [ Return (Variable (CF.Qualified Nothing resultIdent)) ]
+  toAST o@(CF.ObjectUpdate _ obj _) = do
+    res <- flatten identity o
+    obj' <- toAST obj
+    pure <<< iife
+      $ [ ObjectCopy resultIdent obj' ]
+      <> map (\(Tuple acc v) -> UpdateAssign (acc resultVar) v) res
+      <> [ Return resultVar ]
     where
     resultIdent = CF.Ident "_ci_obj"
+
+    resultVar = Variable (CF.Qualified Nothing resultIdent)
+
+    flatten :: (Expr -> Expr) -> CF.Expr CF.Ann -> m (Array (Tuple (Expr -> Expr) Expr))
+    flatten acc (CF.ObjectUpdate _ _ kvs) = concat <$> traverse mk kvs
+      where
+      mk (Tuple k v) = flatten (Accessor (PSString k) <<< acc) v
+
+    flatten acc v = singleton <$> Tuple acc <$> toAST v
 
   toAST (CF.Abs _ arg body) = Function arg <$> map return (toAST body)
 
