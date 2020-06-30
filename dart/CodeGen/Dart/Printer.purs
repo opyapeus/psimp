@@ -96,7 +96,7 @@ expr :: Expr -> DOC
 expr (Var v) = text v
 
 -- REVIEW: clean way to copy object
-expr (Clone x) = text "new Map<String, Object>.from(" <> expr x <> text ")"
+expr (Clone x) = text "new Map<String, dynamic>.from(" <> expr x <> text ")"
 
 expr (Literal l) = lit l
 
