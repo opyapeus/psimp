@@ -1,20 +1,24 @@
-# pslua
+# psimp
 
-A purescript transpiler for lua language.
+This is an attempt to extract PureScript's CoreImp AST for dynamically typed languages.
 
-※ Not well tested.
+Transpile target languages:
+
+- Lua
+- Dart
+- JavaScript
 
 ## Requirements
 
 - spago
 - purescript
-- node
-- lua
-- dart
+- node ✅v14.4.0
+- lua ✅v5.3.5
+- dart ✅v2.8.4
 
 ## Code Generation
 
-generate `corefn.json` of example modules
+Generate [example](./example) modules' `corefn.json` files.
 
 ```
 spago -x example.dhall build --purs-args "-g corefn"
@@ -22,21 +26,21 @@ spago -x example.dhall build --purs-args "-g corefn"
 
 ### Lua
 
-generate lua files to `./outlua`
+Generate Lua files to `./outlua`
 
 ```
 spago -x spago_lua.dhall run
 ```
 
-copy ffi files (manually for now) from [pslua-ffi](https://github.com/opyapeus/pslua-ffi)
+Copy FFI files (manually for now) from [pslua-ffi](https://github.com/opyapeus/pslua-ffi)
 
 ```
-cp -r [somedir]/pslua-ffi/effect/* ./outlua
-cp -r [somedir]/pslua-ffi/console/* ./outlua
-cp -r [somedir]/pslua-ffi/prelude/* ./outlua
+cp -r [clonedir]/pslua-ffi/effect/* ./outlua
+cp -r [clonedir]/pslua-ffi/console/* ./outlua
+cp -r [clonedir]/pslua-ffi/prelude/* ./outlua
 ```
 
-run
+Run
 
 ```
 LUA_PATH=outlua/?.lua lua main.lua
@@ -44,21 +48,21 @@ LUA_PATH=outlua/?.lua lua main.lua
 
 ### Dart
 
-generate lua files to `./outdart`
+Generate Dart files to `./outdart`
 
 ```
 spago -x spago_dart.dhall run
 ```
 
-copy ffi files (manually for now) from [psdart-ffi](https://github.com/opyapeus/psdart-ffi)
+Copy FFI files (manually for now) from [psdart-ffi](https://github.com/opyapeus/psdart-ffi)
 
 ```
-cp -r [somedir]/psdart-ffi/effect/* ./outdart
-cp -r [somedir]/psdart-ffi/console/* ./outdart
-cp -r [somedir]/psdart-ffi/prelude/* ./outdart
+cp -r [clonedir]/psdart-ffi/effect/* ./outdart
+cp -r [clonedir]/psdart-ffi/console/* ./outdart
+cp -r [clonedir]/psdart-ffi/prelude/* ./outdart
 ```
 
-run
+Run
 
 ```
 dart main.dart
@@ -66,13 +70,13 @@ dart main.dart
 
 ### JavaScript
 
-generate lua files to `./outjs`
+Generate JavaScript files to `./outjs` (FFI files copied from `./output`)
 
 ```
 spago -x spago_js.dhall run
 ```
 
-run (ffi files copied from `./output`)
+Run
 
 ```
 node main.js

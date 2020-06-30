@@ -8,7 +8,6 @@ let additions =
       { dependencies =
           [ "foreign-generic"
           , "profunctor"
-          , "spec-discovery"
           ]
       , repo =
           "https://github.com/opyapeus/purescript-corefn"
@@ -16,9 +15,7 @@ let additions =
           "ad6014"
       }
   , prettier-printer =
-      { dependencies =
-          [ "quickcheck"
-          ]
+      { dependencies = [] : List Text 
       , repo =
           "https://github.com/opyapeus/purescript-prettier-printer"
       , version =
