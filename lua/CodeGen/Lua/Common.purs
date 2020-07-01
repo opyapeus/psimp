@@ -15,7 +15,7 @@ properToLua (CF.ProperName s) = anyNameToLua s
 identToLua :: CF.Ident -> String
 identToLua (CF.Ident s) = anyNameToLua s
 
-identToLua (CF.GenIdent ms i) = "GenIdent"
+identToLua (CF.GenIdent _ _) = "GenIdent"
 
 identToLua CF.UnusedIdent = "UnusedIdent"
 

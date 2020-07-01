@@ -15,7 +15,7 @@ properToJS (CF.ProperName s) = anyNameToJS s
 identToJS :: CF.Ident -> String
 identToJS (CF.Ident s) = anyNameToJS s
 
-identToJS (CF.GenIdent ms i) = "GenIdent"
+identToJS (CF.GenIdent _ _) = "GenIdent"
 
 identToJS CF.UnusedIdent = "UnusedIdent"
 

@@ -29,12 +29,12 @@ fnToImp ::
 fnToImp (CF.Module m) = do
   stats <- concat <$> traverse decl m.moduleDecls
   pure
-    $ { moduleName: m.moduleName
-      , moduleImports: imports
-      , moduleExports: m.moduleExports
-      , moduleForeigns: m.moduleForeign
-      , moduleStats: stats
-      }
+    { moduleName: m.moduleName
+    , moduleImports: imports
+    , moduleExports: m.moduleExports
+    , moduleForeigns: m.moduleForeign
+    , moduleStats: stats
+    }
   where
   -- NOTE: remove self module and Prim modules
   imports =
@@ -64,7 +64,7 @@ fnToImp (CF.Module m) = do
       Nothing ->
         Literal
           <<< CF.ObjectLiteral
-          <<< append [ Tuple fixedCtorTagName (Literal (CF.StringLiteral (unProper cn))) ] -- NOTE: add tag field to object to identify constructor 
+          <<< cons (Tuple fixedCtorTagName (Literal (CF.StringLiteral (unProper cn)))) -- NOTE: add tag field to object to identify constructor 
           <$> traverse (\arg -> Tuple <$> unIdent arg <@> Variable (CF.Qualified Nothing arg)) args
 
   toAST (CF.Accessor _ k v) = Accessor (PSString k) <$> toAST v
@@ -73,9 +73,9 @@ fnToImp (CF.Module m) = do
     res <- flatten identity o
     obj' <- toAST obj
     pure <<< iife
-      $ [ ObjectCopy resultIdent obj' ]
-      <> map (\(Tuple acc v) -> UpdateAssign (acc resultVar) v) res
-      <> [ Return resultVar ]
+      <<< cons (ObjectCopy resultIdent obj')
+      $ map (\(Tuple acc v) -> UpdateAssign (acc resultVar) v) res
+      <> return resultVar
     where
     resultIdent = CF.Ident "_ci_obj"
 
@@ -96,12 +96,10 @@ fnToImp (CF.Module m) = do
 
   toAST (CF.Case _ args alts) = iife <$> cases args alts
 
-  toAST (CF.Let _ binds x) =
-    iife
-      <$> do
-          statss <- traverse decl binds
-          res <- toAST x
-          pure $ concat statss <> return res
+  toAST (CF.Let _ binds x) = do
+    statss <- traverse decl binds
+    res <- toAST x
+    pure <<< iife $ concat statss <> return res
 
   iife :: Array Stat -> Expr
   iife stats = Apply (Function (CF.Ident unusedVarName) stats) Unit
@@ -111,14 +109,17 @@ fnToImp (CF.Module m) = do
   return :: Expr -> Array Stat
   return = singleton <<< Return
 
+  ifEqual :: Expr -> Expr -> Array Stat -> Stat
+  ifEqual a b = If (Binary Equal a b)
+
   cases :: Array (CF.Expr CF.Ann) -> Array (CF.CaseAlternative CF.Ann) -> m (Array Stat)
   cases args alts = do
     vals <- traverse toAST args
     body <-
       traverse
         ( \(CF.CaseAlternative ca) -> do
-            res <- guards ca.caseAlternativeResult
-            go vals res ca.caseAlternativeBinders
+            done <- guards ca.caseAlternativeResult
+            go vals done ca.caseAlternativeBinders
         )
         alts
     pure
@@ -155,12 +156,9 @@ fnToImp (CF.Module m) = do
   binder val done (CF.ConstructorBinder _ _ (CF.Qualified _ cn) bs) = do
     stats <- go bs done
     pure <<< singleton
-      $ If
-          ( Binary
-              Equal
-              (Accessor (PSString fixedCtorTagName) val)
-              (Literal (CF.StringLiteral (unProper cn)))
-          )
+      $ ifEqual
+          (Accessor (PSString fixedCtorTagName) val)
+          (Literal (CF.StringLiteral (unProper cn)))
           stats
     where
     fieldCount = length bs
@@ -182,11 +180,11 @@ fnToImp (CF.Module m) = do
     pure $ cons (Assign ident val) stats
 
   literalBinder :: Expr -> Array Stat -> CF.Literal (CF.Binder CF.Ann) -> m (Array Stat)
-  literalBinder val done (CF.NumericLiteral n) = pure <<< singleton $ If (Binary Equal val (Literal (CF.NumericLiteral n))) done
+  literalBinder val done (CF.NumericLiteral n) = pure <<< singleton $ ifEqual val (Literal (CF.NumericLiteral n)) done
 
-  literalBinder val done (CF.CharLiteral c) = pure <<< singleton $ If (Binary Equal val (Literal (CF.CharLiteral c))) done
+  literalBinder val done (CF.CharLiteral c) = pure <<< singleton $ ifEqual val (Literal (CF.CharLiteral c)) done
 
-  literalBinder val done (CF.StringLiteral s) = pure <<< singleton $ If (Binary Equal val (Literal (CF.StringLiteral s))) done
+  literalBinder val done (CF.StringLiteral s) = pure <<< singleton $ ifEqual val (Literal (CF.StringLiteral s)) done
 
   literalBinder val done (CF.BooleanLiteral true) = pure <<< singleton $ If val done
 
@@ -206,12 +204,9 @@ fnToImp (CF.Module m) = do
   literalBinder val done (CF.ArrayLiteral bs) = do
     stats <- go done 0 bs
     pure <<< singleton
-      $ If
-          ( Binary
-              Equal
-              (Unary Length val)
-              (Literal (CF.NumericLiteral (Left (length bs))))
-          )
+      $ ifEqual
+          (Unary Length val)
+          (Literal (CF.NumericLiteral (Left (length bs))))
           stats
     where
     go :: Array Stat -> Int -> Array (CF.Binder CF.Ann) -> m (Array Stat)

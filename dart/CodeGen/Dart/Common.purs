@@ -21,7 +21,7 @@ properToDart (CF.ProperName s) = anyNameToDart s
 identToDart :: CF.Ident -> String
 identToDart (CF.Ident s) = anyNameToDart s
 
-identToDart (CF.GenIdent ms i) = "GenIdent"
+identToDart (CF.GenIdent _ _) = "GenIdent"
 
 identToDart CF.UnusedIdent = "UnusedIdent"
 

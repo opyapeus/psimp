@@ -16,6 +16,19 @@ cpm (Product i s)
 
 cpm _ = "some product"
 
+type Person
+  = { name :: String
+    , age :: Int
+    }
+
+-- Object
+opm :: Person -> String
+opm { name: _, age: 20 } = "twenty"
+
+opm { name: "john", age: 40 } = "someone"
+
+opm { name, age } = name <> show age
+
 -- Array
 apm :: Array String -> String
 apm [] = "empty"
