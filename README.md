@@ -2,9 +2,9 @@
 
 This is an attempt to extract PureScript's CoreImp AST for dynamically typed imperative languages.
 
-I made this based on a past [coreimp works](https://github.com/purescript/purescript/tree/core-imp/src/Language/PureScript/CoreImp)
+It is based on a past [coreimp work](https://github.com/purescript/purescript/tree/core-imp/src/Language/PureScript/CoreImp)
 
-The design principle of this is to provide a simpler [AST](./src/CoreImp/AST.purs) rather than performance considerations.
+The design concept is to provide a simpler [AST](./src/CoreImp/AST.purs) rather than performance considerations.
 
 Transpile target languages:
 
@@ -88,4 +88,4 @@ node main.js
 
 ## Memo
 
-This is not cut out as a library for now, but is a monorepo to modify and check the model easily.
+It is not cut out as a library for now, but is a monorepo to modify and check the model easily.
