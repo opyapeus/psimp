@@ -59,8 +59,6 @@ impToDart mod =
 
   statToDart (CI.UpdateAssign new expr) = D.Assign (exprToDart new) (exprToDart expr)
 
-  statToDart (CI.ObjectCopy ident expr) = D.VarAssign (identToDart ident) (D.Clone (exprToDart expr))
-
   statToDart (CI.If expr stats) = D.If (exprToDart expr) $ map statToDart stats
 
   statToDart (CI.Return expr) = D.Return (exprToDart expr)
@@ -86,6 +84,8 @@ impToDart mod =
     CI.Negative -> D.Unary D.Neg (exprToDart x)
     CI.Not -> D.Unary D.Not (exprToDart x)
     CI.Length -> D.Length (exprToDart x)
+
+  exprToDart (CI.ObjectClone expr) = D.Clone (exprToDart expr)
 
   exprToDart CI.Unit = D.Null
 

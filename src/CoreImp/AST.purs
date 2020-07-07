@@ -27,6 +27,8 @@ data Expr
   | Binary BinOp Expr Expr
   -- | Unary operation
   | Unary UnOp Expr
+  -- | Object clone
+  | ObjectClone Expr
   -- | Unit
   | Unit
 
@@ -35,8 +37,6 @@ data Stat
   = Assign CF.Ident Expr
   -- | Overwrite assignment
   | UpdateAssign Expr Expr
-  -- | Create object clone
-  | ObjectCopy CF.Ident Expr
   -- | Conditional statement
   | If Expr (Array Stat)
   -- | Return value
@@ -53,12 +53,12 @@ instance showExpr :: Show Expr where
   show (Function arg stats) = showCtor "Function" [ show arg, show stats ]
   show (Binary op x y) = showCtor "Binary" [ show op, show x, show y ]
   show (Unary op x) = showCtor "Unary" [ show op, show x ]
+  show (ObjectClone o) = showCtor "ObjectClone" [ show o ]
   show Unit = "Unit"
 
 instance showStat :: Show Stat where
   show (Assign ident val) = showCtor "Assign" [ show ident, show val ]
   show (UpdateAssign obj val) = showCtor "UpdateAssign" [ show obj, show val ]
-  show (ObjectCopy ident obj) = showCtor "ObjectCopy" [ show ident, show obj ]
   show (If cond stats) = showCtor "If" [ show cond, show stats ]
   show (Return val) = showCtor "Return" [ show val ]
   show (Throw s) = showCtor "Throw" [ show s ]
@@ -119,14 +119,14 @@ everywhere fE fS = goS
 
   goE (Unary op x) = fE $ Unary op (goE x)
 
+  goE (ObjectClone o) = fE $ ObjectClone (goE o)
+
   goE other = fE other
 
   goS :: Stat -> Stat
   goS (Assign ident var) = fS $ Assign ident (goE var)
 
   goS (UpdateAssign obj new) = fS $ UpdateAssign (goE obj) (goE new)
-
-  goS (ObjectCopy ident var) = fS $ ObjectCopy ident (goE var)
 
   goS (If cond stats) = fS $ If (goE cond) (map goS stats)
 

@@ -57,8 +57,6 @@ impToJS mod =
 
   statToJS (CI.UpdateAssign new expr) = J.Assign (exprToJS new) (exprToJS expr)
 
-  statToJS (CI.ObjectCopy ident expr) = J.VarAssign (identToJS ident) (J.Clone (exprToJS expr))
-
   statToJS (CI.If expr stats) = J.If (exprToJS expr) $ map statToJS stats
 
   statToJS (CI.Return expr) = J.Return (exprToJS expr)
@@ -84,6 +82,8 @@ impToJS mod =
     CI.Negative -> J.Unary J.Neg (exprToJS x)
     CI.Not -> J.Unary J.Not (exprToJS x)
     CI.Length -> J.Accessor "length" (exprToJS x)
+
+  exprToJS (CI.ObjectClone expr) = J.Clone (exprToJS expr)
 
   exprToJS CI.Unit = J.Null
 

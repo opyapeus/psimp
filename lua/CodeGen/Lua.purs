@@ -57,8 +57,6 @@ impToLua mod =
 
   statToLua (CI.UpdateAssign new expr) = L.Assign (exprToLua new) (exprToLua expr)
 
-  statToLua (CI.ObjectCopy ident expr) = L.LocalAssign (identToLua ident) (L.Clone (exprToLua expr))
-
   statToLua (CI.If expr stats) = L.If (exprToLua expr) $ map statToLua stats
 
   statToLua (CI.Return expr) = L.Return (exprToLua expr)
@@ -81,6 +79,8 @@ impToLua mod =
   exprToLua (CI.Binary op x y) = L.Binary (binary op) (exprToLua x) (exprToLua y)
 
   exprToLua (CI.Unary op x) = L.Unary (unary op) (exprToLua x)
+
+  exprToLua (CI.ObjectClone expr) = L.Clone (exprToLua expr)
 
   exprToLua CI.Unit = L.Nil
 

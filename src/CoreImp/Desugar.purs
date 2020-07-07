@@ -73,7 +73,7 @@ fnToImp (CF.Module m) = do
     res <- flatten identity o
     obj' <- toAST obj
     pure <<< iife
-      <<< cons (ObjectCopy resultIdent obj')
+      <<< cons (Assign resultIdent (ObjectClone obj'))
       $ map (\(Tuple acc v) -> UpdateAssign (acc resultVar) v) res
       <> return resultVar
     where
