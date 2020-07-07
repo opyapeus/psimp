@@ -1,8 +1,8 @@
 module Test.Main where
 
 import Prelude
-import CodeGen.Lua (impToLua)
-import CodeGen.Lua.Printer (print)
+import CodeGen.JS (impToJS)
+import CodeGen.JS.Printer (print)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Except (runExcept)
 import CoreFn.Ann (Ann)
@@ -36,13 +36,13 @@ main = do
           let
             optMod = impMod { moduleStats = map optimize impMod.moduleStats }
 
-            lua = impToLua optMod
+            js = impToJS optMod
           log $ show impMod
           log ""
           log $ show impMod.moduleStats
           log ""
           log $ show optMod.moduleStats
           log ""
-          log $ print lua
+          log $ print js
           log ""
   log "🍝"

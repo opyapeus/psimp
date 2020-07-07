@@ -9,5 +9,6 @@ in conf //
     ]
   , sources = conf.sources #
     [ "js/**/*.purs"
+    , "test/**/*.purs"
     ]
 }
