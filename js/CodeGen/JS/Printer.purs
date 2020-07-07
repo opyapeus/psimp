@@ -89,6 +89,8 @@ expr (Accessor a x) = joinEmpty [ expr x, dot, text a ]
 
 expr (Indexer i x) = joinEmpty [ expr x, bracket.squareOpen, text (show i), bracket.squareClose ]
 
+expr (ForeignAccessor a x) = joinEmpty [ expr x, bracket.squareOpen, text (show a), bracket.squareClose ]
+
 expr (App f x) = joinEmpty [ bracket.roundOpen, expr f, bracket.roundClose, bracket.roundOpen, expr x, bracket.roundClose ]
 
 expr (Function arg stats) =

@@ -11,6 +11,12 @@ import PSString (PSString(..))
 properToJS :: CF.ProperName -> String
 properToJS (CF.ProperName s) = anyNameToJS s
 
+-- | NOTE: use direct name to refer raw foreign.js (ex. exports["uncons'"])
+foreignIdentToJS :: CF.Ident -> String
+foreignIdentToJS (CF.Ident s) = s
+
+foreignIdentToJS i = identToJS i
+
 -- | Convert a 'Ident' into a valid JS identifier
 identToJS :: CF.Ident -> String
 identToJS (CF.Ident s) = anyNameToJS s
