@@ -82,6 +82,8 @@ impToLua mod =
 
   exprToLua (CI.ObjectClone expr) = L.Clone (exprToLua expr)
 
+  exprToLua (CI.ArrayLength expr) = L.Unary L.Len (exprToLua expr)
+
   exprToLua CI.Unit = L.Nil
 
   binary :: CI.BinOp -> L.BinOp
@@ -113,8 +115,6 @@ impToLua mod =
 
   unary :: CI.UnOp -> L.UnOp
   unary CI.Negative = L.Neg
-
-  unary CI.Length = L.Len
 
   unary CI.Not = L.Not
 

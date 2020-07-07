@@ -80,12 +80,11 @@ impToDart mod =
 
   exprToDart (CI.Binary op x y) = D.Binary (binary op) (exprToDart x) (exprToDart y)
 
-  exprToDart (CI.Unary op x) = case op of
-    CI.Negative -> D.Unary D.Neg (exprToDart x)
-    CI.Not -> D.Unary D.Not (exprToDart x)
-    CI.Length -> D.Length (exprToDart x)
+  exprToDart (CI.Unary op x) = D.Unary (unary op) (exprToDart x)
 
   exprToDart (CI.ObjectClone expr) = D.Clone (exprToDart expr)
+
+  exprToDart (CI.ArrayLength expr) = D.Length (exprToDart expr)
 
   exprToDart CI.Unit = D.Null
 
@@ -115,6 +114,11 @@ impToDart mod =
   binary CI.And = D.And
 
   binary CI.Or = D.Or
+
+  unary :: CI.UnOp -> D.UnOp
+  unary CI.Negative = D.Neg
+
+  unary CI.Not = D.Not
 
   literal :: CF.Literal CI.Expr -> D.Lit
   literal (CF.NumericLiteral (Left i)) = D.Int i

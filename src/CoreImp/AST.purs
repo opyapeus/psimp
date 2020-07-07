@@ -29,6 +29,8 @@ data Expr
   | Unary UnOp Expr
   -- | Object clone
   | ObjectClone Expr
+  -- | Array length
+  | ArrayLength Expr
   -- | Unit
   | Unit
 
@@ -54,6 +56,7 @@ instance showExpr :: Show Expr where
   show (Binary op x y) = showCtor "Binary" [ show op, show x, show y ]
   show (Unary op x) = showCtor "Unary" [ show op, show x ]
   show (ObjectClone o) = showCtor "ObjectClone" [ show o ]
+  show (ArrayLength arr) = showCtor "ArrayLength" [ show arr ]
   show Unit = "Unit"
 
 instance showStat :: Show Stat where
@@ -88,7 +91,6 @@ data BinOp
 
 data UnOp
   = Negative
-  | Length
   | Not
 
 derive instance genericBinOp :: Generic BinOp _
@@ -120,6 +122,8 @@ everywhere fE fS = goS
   goE (Unary op x) = fE $ Unary op (goE x)
 
   goE (ObjectClone o) = fE $ ObjectClone (goE o)
+
+  goE (ArrayLength arr) = fE $ ArrayLength (goE arr)
 
   goE other = fE other
 

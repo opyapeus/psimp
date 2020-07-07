@@ -205,7 +205,7 @@ fnToImp (CF.Module m) = do
     stats <- go done 0 bs
     pure <<< singleton
       $ ifEqual
-          (Unary Length val)
+          (ArrayLength val)
           (Literal (CF.NumericLiteral (Left (length bs))))
           stats
     where

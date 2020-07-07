@@ -78,12 +78,11 @@ impToJS mod =
 
   exprToJS (CI.Binary op x y) = J.Binary (binary op) (exprToJS x) (exprToJS y)
 
-  exprToJS (CI.Unary op x) = case op of
-    CI.Negative -> J.Unary J.Neg (exprToJS x)
-    CI.Not -> J.Unary J.Not (exprToJS x)
-    CI.Length -> J.Accessor "length" (exprToJS x)
+  exprToJS (CI.Unary op x) = J.Unary (unary op) (exprToJS x)
 
   exprToJS (CI.ObjectClone expr) = J.Clone (exprToJS expr)
+
+  exprToJS (CI.ArrayLength expr) = J.Accessor "length" (exprToJS expr)
 
   exprToJS CI.Unit = J.Null
 
@@ -113,6 +112,11 @@ impToJS mod =
   binary CI.And = J.And
 
   binary CI.Or = J.Or
+
+  unary :: CI.UnOp -> J.UnOp
+  unary CI.Negative = J.Neg
+
+  unary CI.Not = J.Not
 
   literal :: CF.Literal CI.Expr -> J.Lit
   literal (CF.NumericLiteral (Left i)) = J.Int i
