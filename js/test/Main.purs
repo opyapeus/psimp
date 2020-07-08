@@ -19,7 +19,7 @@ import Node.FS.Sync as S
 
 main :: Effect Unit
 main = do
-  json <- S.readTextFile UTF8 "output/Sample/corefn.json"
+  json <- S.readTextFile UTF8 "../example/output/Sample/corefn.json"
   -- to show module data except annotation
   case runExcept (moduleFromJSON json) of
     Left err -> log $ show err

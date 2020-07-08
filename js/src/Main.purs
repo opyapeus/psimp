@@ -22,8 +22,9 @@ import Node.FS.Stats as St
 import Node.FS.Sync as S
 import Node.Path (FilePath)
 
+-- TODO: command argments
 baseDir :: FilePath
-baseDir = "output"
+baseDir = "../example/output"
 
 outDir :: FilePath
 outDir = "outjs"

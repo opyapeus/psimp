@@ -1,0 +1,11 @@
+{
+  "name": "lua",
+  "version": "0.0.0",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "spago build",
+    "codegen": "spago run",
+    "execute": "LUA_PATH=outlua/?.lua lua main.lua"
+  }
+}

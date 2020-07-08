@@ -4,86 +4,85 @@ This is an attempt to extract PureScript's CoreImp AST for dynamically typed imp
 
 It is based on a past [coreimp work](https://github.com/purescript/purescript/tree/core-imp/src/Language/PureScript/CoreImp)
 
-The design concept is to provide a simpler [AST](./src/CoreImp/AST.purs) rather than performance considerations.
+The design concept is to provide a simpler [AST](./coreimp/src/CoreImp/AST.purs) rather than performance considerations.
 
 Transpile target languages:
 
+- JavaScript
 - Lua
 - Dart
-- JavaScript
 
 ## Requirements
 
-- spago
-- purescript
+- yarn
 - node ✅v14.4.0
 - lua ✅v5.3.5
 - dart ✅v2.8.4
 
 ## Code Generation
 
-Generate [example](./example) modules' `corefn.json` files.
+First, generate [example](./example/src) modules' `corefn.json` files to `./example/output`
 
 ```
-spago -x example.dhall build --purs-args "-g corefn"
+yarn example
+```
+
+### JavaScript
+
+Generate JavaScript files to `./js/outjs` (FFI files copied from `./example/output`)
+
+```
+yarn js:codegen
+```
+
+Run
+
+```
+yarn js:execute
 ```
 
 ### Lua
 
-Generate Lua files to `./outlua`
+Generate Lua files to `./lua/outlua`
 
 ```
-spago -x spago_lua.dhall run
+yarn lua:codegen
 ```
 
 Copy FFI files (manually for now) from [pslua-ffi](https://github.com/opyapeus/pslua-ffi)
 
 ```
-cp -r [clonedir]/pslua-ffi/effect/* ./outlua
-cp -r [clonedir]/pslua-ffi/console/* ./outlua
-cp -r [clonedir]/pslua-ffi/prelude/* ./outlua
+cp -r [clonedir]/pslua-ffi/effect/* ./lua/outlua
+cp -r [clonedir]/pslua-ffi/console/* ./lua/outlua
+cp -r [clonedir]/pslua-ffi/prelude/* ./lua/outlua
 ```
 
 Run
 
 ```
-LUA_PATH=outlua/?.lua lua main.lua
+yarn lua:execute
 ```
 
 ### Dart
 
-Generate Dart files to `./outdart`
+Generate Dart files to `./dart/outdart`
 
 ```
-spago -x spago_dart.dhall run
+yarn dart:codegen
 ```
 
 Copy FFI files (manually for now) from [psdart-ffi](https://github.com/opyapeus/psdart-ffi)
 
 ```
-cp -r [clonedir]/psdart-ffi/effect/* ./outdart
-cp -r [clonedir]/psdart-ffi/console/* ./outdart
-cp -r [clonedir]/psdart-ffi/prelude/* ./outdart
+cp -r [clonedir]/psdart-ffi/effect/* ./dart/outdart
+cp -r [clonedir]/psdart-ffi/console/* ./dart/outdart
+cp -r [clonedir]/psdart-ffi/prelude/* ./dart/outdart
 ```
 
 Run
 
 ```
-dart main.dart
-```
-
-### JavaScript
-
-Generate JavaScript files to `./outjs` (FFI files copied from `./output`)
-
-```
-spago -x spago_js.dhall run
-```
-
-Run
-
-```
-node main.js
+yarn dart:execute
 ```
 
 ## Memo

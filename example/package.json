@@ -1,0 +1,9 @@
+{
+  "name": "example",
+  "version": "0.0.0",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "output": "spago build --purs-args \"-g corefn,js\""
+  }
+}

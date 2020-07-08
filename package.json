@@ -1,0 +1,31 @@
+{
+  "name": "psimp",
+  "version": "0.0.0",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "coreimp:build": "yarn workspace coreimp build",
+    "example": "yarn workspace example output",
+    "js:build": "yarn workspace js build",
+    "js:codegen": "yarn workspace js codegen",
+    "js:execute": "yarn workspace js execute",
+    "js:test": "yarn workspace js test",
+    "lua:build": "yarn workspace lua build",
+    "lua:codegen": "yarn workspace lua codegen",
+    "lua:execute": "yarn workspace lua execute",
+    "dart:build": "yarn workspace dart build",
+    "dart:codegen": "yarn workspace dart codegen",
+    "dart:execute": "yarn workspace dart execute"
+  },
+  "devDependencies": {
+    "purescript": "^0.13.8",
+    "spago": "^0.15.3"
+  },
+  "workspaces": [
+    "coreimp",
+    "example",
+    "js",
+    "lua",
+    "dart"
+  ]
+}

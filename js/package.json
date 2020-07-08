@@ -1,0 +1,12 @@
+{
+  "name": "js",
+  "version": "0.0.0",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "spago build",
+    "codegen": "spago run",
+    "execute": "node main.js",
+    "test": "spago test"
+  }
+}

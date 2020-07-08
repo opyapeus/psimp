@@ -1,9 +1,9 @@
 module Main where
 
 import Prelude
-import CodeGen.Lua (impToLua, mkModPath, modPathJoiner)
-import CodeGen.Lua.Optimizer (optimize)
-import CodeGen.Lua.Printer (print)
+import CodeGen.Dart (impToDart, mkModPath)
+import CodeGen.Dart.Optimizer (optimize)
+import CodeGen.Dart.Printer (print)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Except (runExcept)
 import CoreFn.Ann (Ann)
@@ -14,7 +14,7 @@ import CoreImp.Module (optimizeModule)
 import Data.Array (delete)
 import Data.Either (Either(..))
 import Data.Foldable (for_)
-import Data.String (Pattern(..), Replacement(..), joinWith, replaceAll)
+import Data.String (joinWith)
 import Effect (Effect)
 import Effect.Class.Console (info, log)
 import Effect.Console (error)
@@ -23,11 +23,12 @@ import Node.FS.Stats as St
 import Node.FS.Sync as S
 import Node.Path (FilePath)
 
+-- TODO: command argments
 baseDir :: FilePath
-baseDir = "output"
+baseDir = "../example/output"
 
 outDir :: FilePath
-outDir = "outlua"
+outDir = "outdart"
 
 main :: Effect Unit
 main = do
@@ -39,25 +40,31 @@ main = do
     let
       jsonPath = joinWith "/" [ baseDir, modName, "corefn.json" ]
 
-      replacedModName = replaceAll (Pattern ".") (Replacement modPathJoiner) modName
+      foreignPath = joinWith "/" [ baseDir, modName, "foreign.dart" ]
 
-      luaPath = joinWith "/" [ outDir, replacedModName, "index.lua" ]
+      dartPath = joinWith "/" [ outDir, modName, "index.dart" ]
     isJson <- S.exists jsonPath
-    isLua <- S.exists luaPath
+    isForeign <- S.exists foreignPath
+    isDart <- S.exists dartPath
     -- process only modules which has corefn
     when isJson do
-      if isLua then do
+      if isDart then do
         statJson <- S.stat jsonPath
-        statLua <- S.stat luaPath
+        statDart <- S.stat dartPath
         let
           mtimeJson = St.modifiedTime statJson
 
-          mtimeLua = St.modifiedTime statLua
+          mtimeDart = St.modifiedTime statDart
         -- process only modules modified
-        when (mtimeLua < mtimeJson) do
+        when (mtimeDart < mtimeJson) do
           processJson jsonPath
       else do
         processJson jsonPath
+        -- copy foreign.dart
+        when isForeign do
+          dart <- S.readTextFile UTF8 foreignPath
+          S.writeTextFile UTF8 (joinWith "/" [ outDir, modName, "foreign.dart" ]) dart
+          log "copied foregin.dart"
   info "--- transpiled! ---"
 
 processJson :: FilePath -> Effect Unit
@@ -76,13 +83,13 @@ transpile mod = do
       let
         optMod = optimizeModule impMod
 
-        lua = impToLua optMod
+        dart = impToDart optMod
 
-        optLua = map optimize lua
+        optDart = map optimize dart
 
         modDir = joinWith "/" [ outDir, mkModPath impMod.moduleName ]
       orMakeDir modDir
-      S.writeTextFile UTF8 (joinWith "/" [ modDir, "index.lua" ]) (print optLua)
+      S.writeTextFile UTF8 (joinWith "/" [ modDir, "index.dart" ]) (print optDart)
       log $ mkModPath impMod.moduleName
 
 orMakeDir :: FilePath -> Effect Unit
