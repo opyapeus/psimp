@@ -1,0 +1,22 @@
+language: node_js
+node_js:
+  - node
+install:
+  - yarn
+script:
+  # coreimp
+  - yarn coreimp:build
+  # example
+  - yarn example
+  # js
+  - yarn js:build
+  - yarn js:codegen
+  - yarn js:test
+  # lua
+  - yarn lua:build
+  - yarn lua:codegen
+  # dart
+  - yarn dart:build
+  - yarn dart:codegen
+
+# TODO: execute generated files on each language environments
