@@ -19,6 +19,16 @@ Transpile target languages:
 - lua ✅v5.3.5
 - dart ✅v2.8.4
 
+### Requirements with Nix
+
+A simple way to get the requirements in Nix is to use a one-liner nix-shell command.
+For instance, if you are just in lua but not dart, you could do:
+
+```
+nix-shell -p lua yarn nodejs
+```
+
+
 ## Code Generation
 
 First, generate [example](./example/src) modules' `corefn.json` files to `./example/output`
